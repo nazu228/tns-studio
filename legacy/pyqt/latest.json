@@ -1,0 +1,21 @@
+{
+  "app_slug": "tns_studio",
+  "app_name": "ТНС Энерго — Студия начислений по домам",
+  "app_version": "2.2.3",
+  "release_date": "2026-09-21",
+  "min_supported_version": "2.0.0",
+  "release_notes": "Релиз v2.2.3: Полное устранение ошибки LoadLibrary и плагинов Qt, стабильное фоновое автообновление и синхронизация",
+  "package": {
+    "filename": "tns_studio_v2.2.3.zip",
+    "url": "https://storage.yandexcloud.net/ajeftdaam8hhmrujr94k/tns_studio/releases/tns_studio_v2.2.3.zip",
+    "file_size": 84602216,
+    "sha256": "b9d005f7aa71f5db2fbd361509f3aa3bd3add5ac05ef172cbb6a3fc6fae714d9"
+  },
+  "database": {
+    "version": 1,
+    "last_modified": "2026-09-21T13:18:03.426929+00:00",
+    "filename": "tns_database.sqlite",
+    "url": "https://storage.yandexcloud.net/ajeftdaam8hhmrujr94k/tns_studio/database/tns_database.sqlite",
+    "sha256": "11c15cac31071a4d0fff91c0d2e6a9dbd8b86319a4f14d64c4289ec1ea54c9d6"
+  }
+}
