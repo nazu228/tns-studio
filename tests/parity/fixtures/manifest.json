@@ -1,0 +1,64 @@
+{
+  "generator": "scripts/gen_fixtures.py",
+  "header_row": 7,
+  "data_start": 9,
+  "columns": {
+    "type": 1,
+    "num": 3,
+    "name": 4,
+    "meter": 5,
+    "zone": 9,
+    "sub": 10,
+    "start": 12,
+    "end": 13,
+    "diff": 15,
+    "coeff": 16,
+    "main": 17,
+    "sub_deduct": 23,
+    "billed": 28
+  },
+  "fixtures": [
+    {
+      "file": "dom_april_2026.xlsx",
+      "consumer": "ООО «Южный Дом»",
+      "contract": "23110603789",
+      "period": "Апрель 2026 г.",
+      "month": "Апрель",
+      "year": "2026",
+      "sha256": "6ac927d4291cbe43b15a200238353bc99c15091b708877ca7ef3904fb0831e89",
+      "houses_count": 2,
+      "statement_total": 252.75,
+      "meter_rows": 6,
+      "sub_rows": 1,
+      "total_row": 18
+    },
+    {
+      "file": "gorod_april_2026.xlsx",
+      "consumer": "ООО «Южный Город»",
+      "contract": "23110604327",
+      "period": "Апрель 2026 г.",
+      "month": "Апрель",
+      "year": "2026",
+      "sha256": "49965170c3024127c6edac7d9784257fbafac2ac0787e7f793b818ed215891f6",
+      "houses_count": 3,
+      "statement_total": 488.5,
+      "meter_rows": 8,
+      "sub_rows": 0,
+      "total_row": 20
+    },
+    {
+      "file": "dom_march_2026.xlsx",
+      "consumer": "ООО «Южный Дом»",
+      "contract": "23110603789",
+      "period": "Март 2026 г.",
+      "month": "Март",
+      "year": "2026",
+      "sha256": "b8e3b45f26de0c94c872ae21dd917e45b770a8f111d5eebbb369bd234f36e7b5",
+      "houses_count": 1,
+      "statement_total": 277.75,
+      "meter_rows": 4,
+      "sub_rows": 1,
+      "total_row": 15
+    }
+  ]
+}

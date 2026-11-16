@@ -1,0 +1,84 @@
+{
+  "fixture": "dom_march_2026.xlsx",
+  "month": "Март",
+  "year": "2026",
+  "events": [
+    [
+      5,
+      "Чтение файла: dom_march_2026.xlsx..."
+    ],
+    [
+      15,
+      "Анализ структуры столбцов и приборов учета..."
+    ],
+    [
+      35,
+      "Найдено домов: 1. Разметка и добавление формул в Ведомость ЭП..."
+    ],
+    [
+      65,
+      "Построение листа «Сводка по домам» (Дашборд)..."
+    ],
+    [
+      90,
+      "Сохранение файла в папку Март 2026 ТНС..."
+    ],
+    [
+      100,
+      "Готово! Сохранен в: Март 2026 ТНС"
+    ]
+  ],
+  "result": {
+    "success": true,
+    "consumer": "ООО \"Южный Дом\"",
+    "contract": "23110603789",
+    "period": "Март 2026 г.",
+    "subfolder_name": "Март 2026 ТНС",
+    "target_dir": "Март 2026 ТНС",
+    "target_path": "Март 2026 ТНС\\Дом_Март_2026.xlsx",
+    "warning": null,
+    "houses_count": 1,
+    "total_day": 200.0,
+    "total_night": 62.5,
+    "total_odn": 15.25,
+    "total_simple": 15.25,
+    "total_all": 277.75,
+    "statement_total": 277.75,
+    "balance_diff": 0.0,
+    "balance_ok": true,
+    "preview_rows": [
+      {
+        "num": 1,
+        "name": "ул. Садовая, д. 7",
+        "day": 200.0,
+        "night": 62.5,
+        "odn": 15.25,
+        "simple": 15.25,
+        "total": 277.75,
+        "control": 277.75,
+        "diff": 0.0,
+        "meters": "3 раб. / 1 рез.",
+        "meters_active": 3,
+        "meters_res": 1
+      }
+    ],
+    "columns_used": {
+      "col_type": 1,
+      "col_point_num": 3,
+      "col_point_name": 4,
+      "col_meter_num": 5,
+      "col_zone": 9,
+      "col_sub_type": 10,
+      "col_read_start": 12,
+      "col_read_end": 13,
+      "col_diff": 15,
+      "col_coeff": 16,
+      "col_main_exp": 17,
+      "col_sub_deduct": 23,
+      "col_billed_vol": 28,
+      "first_data_row": 9,
+      "col_house_name": 3,
+      "col_total_label": 2
+    }
+  }
+}
