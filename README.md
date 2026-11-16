@@ -104,6 +104,18 @@ Tauri-команды подключим после Rust-ядра.
 и `tsc` не находится), затем гоняет `cargo test`/`check`, parity-тесты, `npm typecheck`/`build`
 и проверяет, что `legacy/pyqt` и `tests/parity` не изменены.
 
+## Handoff и карта кода
+
+- `docs/HANDOFF_PROMPT.md` — полный промпт для нового чата/агента.
+- `graphify-out/GRAPH_REPORT.md` — карта кода (719 узлов, 1511 рёбер, 36 сообществ).
+- `graphify-out/graph.html` — интерактивная карта.
+- `graphify-out/graph.json` — граф для `graphify query/path/explain`.
+
+```powershell
+graphify query "как process_statement связан с tns-db?"
+graphify update .   # после изменений кода
+```
+
 ## Статус миграции
 
 - `main` — legacy-снапшот.
