@@ -46,10 +46,12 @@ python legacy/pyqt/app_gui.py
 ```powershell
 python tests/parity/scripts/gen_fixtures.py
 python tests/parity/scripts/gen_golden.py
+python tests/parity/scripts/gen_screenshots.py
 python -m pytest tests/parity -q
 ```
 
-Сейчас: 3 фикстуры (dom/gorod/march), golden-выходы legacy и 7 зелёных тестов.
+Сейчас: 3 фикстуры (dom/gorod/march), golden-выходы legacy, 5 скриншотов
+(`tests/parity/screenshots/`) и 7 зелёных тестов.
 `legacy/pyqt/` не изменяется: проверка `git diff --exit-code origin/rust-migration -- legacy/pyqt`.
 
 ## Статус миграции

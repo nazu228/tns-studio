@@ -55,7 +55,7 @@
 | `tests/parity/scripts/gen_fixtures.py` | готово | 3 фикстуры (dom/gorod/march) |
 | `tests/parity/scripts/gen_golden.py` | готово | golden xlsx + JSON |
 | `tests/parity/tests/test_parity.py` | готово | `7 passed` |
-| `tests/parity/screenshots` | не начато | нужен pytest-qt скриншот-скрипт |
+| `tests/parity/screenshots` | готово | 5 PNG: empty, help, dom, gorod, error |
 | `tests/parity/benchmarks` | не начато | нужен замер legacy |
 
 Итого: 61 строка в полной версии (52 «не портировано», 9 «удалено»); в этой сокращённой — ключевые 24 строки. Статусы обновляются после каждого порта.
