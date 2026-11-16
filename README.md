@@ -54,9 +54,25 @@ python -m pytest tests/parity -q
 (`tests/parity/screenshots/`) и 7 зелёных тестов.
 `legacy/pyqt/` не изменяется: проверка `git diff --exit-code origin/rust-migration -- legacy/pyqt`.
 
+## React UI (Vite)
+
+```powershell
+cd apps/ui
+npm install
+npm run typecheck
+npm run build
+npm run dev
+```
+
+Сейчас это скелет главного окна TNS с design parity: шапка, режимы расчёта,
+выбор источника, месяц/год, карточки, вкладки «Дом»/«Город», таблица, итоги,
+справка. Кнопка «Облако» и S3-бейдж удалены по плану. Данные — моковые,
+Tauri-команды подключим после Rust-ядра.
+
 ## Статус миграции
 
 - `main` — legacy-снапшот.
 - `rust-migration` — план миграции.
-- `parity-harness` — фикстуры, golden и тесты (готово).
-- Rust/React/Tauri-скелет — следующий этап.
+- `parity-harness` — фикстуры, golden, скриншоты и тесты (готово).
+- `apps/ui` — React-скелет главного окна (готово).
+- Rust-ядро и Tauri-оболочка — следующий этап; нужен Rust toolchain + MSVC Build Tools.
