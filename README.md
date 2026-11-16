@@ -94,6 +94,16 @@ npm run dev
 справка. Кнопка «Облако» и S3-бейдж удалены по плану. Данные — моковые,
 Tauri-команды подключим после Rust-ядра.
 
+## Полная верификация
+
+```powershell
+.\scripts\verify.ps1
+```
+
+Скрипт ставит зависимости `apps/ui`, если `node_modules` отсутствует (в свежем worktree его нет
+и `tsc` не находится), затем гоняет `cargo test`/`check`, parity-тесты, `npm typecheck`/`build`
+и проверяет, что `legacy/pyqt` и `tests/parity` не изменены.
+
 ## Статус миграции
 
 - `main` — legacy-снапшот.
