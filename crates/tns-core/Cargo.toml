@@ -9,4 +9,9 @@ name = "tns_core"
 path = "src/lib.rs"
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
 tns-excel = { path = "../tns-excel" }
+
+[dev-dependencies]
+serde_json = "1"
+tempfile = "3.27.0"

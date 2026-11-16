@@ -7,7 +7,9 @@
 use std::fmt;
 
 pub mod layout;
+pub mod process;
 pub use layout::*;
+pub use process::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Zone {

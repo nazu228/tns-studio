@@ -34,7 +34,11 @@
   fallback-копией. **3 passed** (чтение фикстур, round-trip, safe save).
 - [x] `tns-core`: `resolve_layout`, `extract_metadata`, `detect_statement_type`
   портированы и проверены на dom/gorod фикстурах; **10 passed**.
-- [ ] `process_statement` (расчёт, формулы, стили, прогресс, отмена) — следующий этап.
+- [x] `process_statement` — парсинг домов/ПУ/субабонентов, валидация billed values,
+  period/paths/имена, итоги, `preview_rows`, `balance`, прогресс 5/15/35/65/90/100,
+  отмена. Result совпадает с golden на dom/gorod; **14 passed**.
+- [ ] Выходная книга: формулы, стили, merge, freeze, CF, hyperlink, `safe_save`.
+- [ ] Tauri `detect_statement`/`process_statement`, UI invoke, updater/CI.
 - [ ] Интеграция React UI с Tauri invoke, updater, CI.
 
 ## Проверки
@@ -45,7 +49,7 @@
 | `cd apps/ui && npm run typecheck` | ok |
 | `cd apps/ui && npm run build` | ok (dist) |
 | `cargo check --manifest-path crates/tns-core/Cargo.toml` | ok |
-| `cargo test --manifest-path crates/tns-core/Cargo.toml` | 10 passed |
+| `cargo test --manifest-path crates/tns-core/Cargo.toml` | 14 passed |
 | `cargo test --manifest-path crates/tns-db/Cargo.toml` | 4 passed |
 | `cargo check --manifest-path src-tauri/Cargo.toml` | ok (Tauri 2.12) |
 | `cargo test --manifest-path crates/tns-excel/Cargo.toml` | 3 passed |

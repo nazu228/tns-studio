@@ -16,8 +16,8 @@
 | `core_engine.py:37` `classify_zone` | day/night/odn | `tns-core` | портировано + тесты | unit-тесты |
 | `core_engine.py:68` `safe_save_workbook` | атомарная запись + fallback | `tns-excel` | портировано + тесты | unit-тест |
 | `core_engine.py:92` `detect_statement_type` | dom/gorod (без sha256-кэша) | `tns-core` | портировано + тесты | фикстуры dom/gorod |
-| `core_engine.py:125` `process_statement` | прогресс 5/15/35/65/90/100, 2 листа, формулы, result | `tns-core` + `tns-excel` | не портировано | golden-тесты |
-| Excel-стили `core_engine.py:276–331` | Segoe UI, заливки, границы, `#,##0.000` | `tns-excel` | не портировано | xlsx-сигнатура |
+| `core_engine.py:125` `process_statement` | парсинг, result, прогресс, отмена; output workbook — следующий срез | `tns-core` + `tns-excel` | частично: result + golden dom/gorod | golden JSON |
+| Excel-стили `core_engine.py:276–331` | Segoe UI, заливки, границы, `#,##0.000` | `tns-excel` | не портировано (следующий срез) | xlsx-сигнатура |
 
 ## БД
 

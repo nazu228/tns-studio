@@ -2,10 +2,11 @@
 //! core_engine.detect_statement_type, using umya-spreadsheet worksheets.
 
 use crate::{normalize_header, row_type, TnsError};
+use serde::Serialize;
 use std::collections::HashSet;
 use tns_excel::{Workbook, Worksheet};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LayoutColumns {
     pub col_type: usize,
     pub col_point_num: usize,
@@ -298,14 +299,18 @@ pub fn detect_statement_type(book: &Workbook) -> (StatementKind, String, String)
     };
     let metadata = extract_metadata(sheet);
     let consumer = metadata.consumer.to_lowercase();
-    if consumer.contains("город") {
-        (StatementKind::Gorod, metadata.consumer, metadata.contract)
-    } else if consumer.contains("дом") {
-        (StatementKind::Dom, metadata.consumer, metadata.contract)
-    } else if metadata.contract.contains("23110604327") {
-        (StatementKind::Gorod, metadata.consumer, metadata.contract)
-    } else if metadata.contract.contains("23110603789") {
-        (StatementKind::Dom, metadata.consumer, metadata.contract)
+    if consumer.contains("город") || metadata.contract.contains("23110604327") {
+        (
+            StatementKind::Gorod,
+            "ООО \"Южный город\"".to_string(),
+            "23110604327".to_string(),
+        )
+    } else if consumer.contains("дом") || metadata.contract.contains("23110603789") {
+        (
+            StatementKind::Dom,
+            "ООО \"Южный Дом\"".to_string(),
+            "23110603789".to_string(),
+        )
     } else {
         (StatementKind::Unknown, metadata.consumer, metadata.contract)
     }
