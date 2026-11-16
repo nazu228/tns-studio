@@ -32,7 +32,9 @@
 - [x] `crates/tns-excel` — обёртка над `umya-spreadsheet` 3.1.1 (MIT):
   чтение/запись существующей книги, `safe_save` с атомарной заменой и
   fallback-копией. **3 passed** (чтение фикстур, round-trip, safe save).
-- [ ] `process_statement` / `resolve_layout` / `extract_metadata` в `tns-core` — следующий этап.
+- [x] `tns-core`: `resolve_layout`, `extract_metadata`, `detect_statement_type`
+  портированы и проверены на dom/gorod фикстурах; **10 passed**.
+- [ ] `process_statement` (расчёт, формулы, стили, прогресс, отмена) — следующий этап.
 - [ ] Интеграция React UI с Tauri invoke, updater, CI.
 
 ## Проверки
@@ -43,7 +45,7 @@
 | `cd apps/ui && npm run typecheck` | ok |
 | `cd apps/ui && npm run build` | ok (dist) |
 | `cargo check --manifest-path crates/tns-core/Cargo.toml` | ok |
-| `cargo test --manifest-path crates/tns-core/Cargo.toml` | 6 passed |
+| `cargo test --manifest-path crates/tns-core/Cargo.toml` | 10 passed |
 | `cargo test --manifest-path crates/tns-db/Cargo.toml` | 4 passed |
 | `cargo check --manifest-path src-tauri/Cargo.toml` | ok (Tauri 2.12) |
 | `cargo test --manifest-path crates/tns-excel/Cargo.toml` | 3 passed |

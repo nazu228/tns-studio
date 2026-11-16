@@ -7,3 +7,6 @@ description = "Pure TNS statement parsing and calculation logic (Rust port of le
 [lib]
 name = "tns_core"
 path = "src/lib.rs"
+
+[dependencies]
+tns-excel = { path = "../tns-excel" }

@@ -6,6 +6,9 @@
 
 use std::fmt;
 
+pub mod layout;
+pub use layout::*;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Zone {
     Day,

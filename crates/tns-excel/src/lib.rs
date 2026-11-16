@@ -9,7 +9,8 @@
 use chrono::Local;
 use std::fmt;
 use std::path::{Path, PathBuf};
-use umya_spreadsheet::{reader, writer, Workbook};
+use umya_spreadsheet::{reader, writer};
+pub use umya_spreadsheet::{new_file, Workbook, Worksheet};
 
 #[derive(Debug)]
 pub enum ExcelError {
