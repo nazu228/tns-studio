@@ -67,6 +67,17 @@ python -m pytest tests/parity -q
 `tns-db`: схема legacy, seed, история, upsert домов, бэкап, валидация
 (4 теста). `cargo test` требует MSVC Build Tools (`link.exe`).
 
+## Tauri shell
+
+```powershell
+.\scripts\cargo.ps1 check --manifest-path src-tauri/Cargo.toml
+```
+
+Tauri 2, окно 1280×880, `frontendDist` на `apps/ui/dist`. Команды:
+`history_list`, `backup_db`, `open_file`, `open_folder`, `config_get`,
+`detect_statement`, `process_statement`, `update_check`.
+`detect_statement`/`process_statement` пока заглушки до Excel-порта.
+
 ## React UI (Vite)
 
 ```powershell

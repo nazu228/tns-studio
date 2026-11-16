@@ -1,0 +1,32 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "TNS Energy Studio",
+  "version": "0.1.0",
+  "identifier": "com.nazu228.tnsstudio",
+  "build": {
+    "beforeDevCommand": "npm --prefix ../apps/ui run dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "npm --prefix ../apps/ui run build",
+    "frontendDist": "../apps/ui/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "ТНС Энерго — Студия расчёта начислений",
+        "width": 1280,
+        "height": 880,
+        "minWidth": 1060,
+        "minHeight": 720,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/icon.ico", "icons/icon.png"]
+  }
+}

@@ -5,6 +5,7 @@
 //! are removed. The database stays local; backups are local files.
 
 use rusqlite::{params, Connection, OptionalExtension};
+use serde::Serialize;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -51,7 +52,7 @@ impl From<TnsError> for DbError {
 
 pub type DbResult<T> = Result<T, DbError>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CalculationRecord {
     pub period_month: String,
     pub period_year: String,
@@ -68,7 +69,7 @@ pub struct CalculationRecord {
     pub calculated_at: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HistoryEntry {
     pub id: i64,
     pub period_month: String,
@@ -86,7 +87,7 @@ pub struct HistoryEntry {
     pub calculated_at: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Summary {
     pub houses_count: i64,
     pub calculations_count: i64,

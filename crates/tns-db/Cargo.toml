@@ -10,6 +10,7 @@ path = "src/lib.rs"
 
 [dependencies]
 rusqlite = { version = "0.43.0", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
 tns-core = { version = "0.1.0", path = "../tns-core" }
 
 [dev-dependencies]

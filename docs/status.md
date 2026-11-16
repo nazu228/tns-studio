@@ -25,7 +25,12 @@
 - [x] MSVC Build Tools + Windows SDK установлены; `scripts/cargo.ps1` запускает cargo в их окружении.
 - [x] `crates/tns-db` — локальная SQLite: схема legacy, seed организаций/тарифов,
   история расчётов, upsert домов, локальный бэкап, валидация. **4 passed**.
-- [ ] `crates/tns-excel`, `src-tauri`, команды, updater, CI — следующий этап.
+- [x] `src-tauri` — Tauri 2 shell: окно 1280×880, иконка, `frontendDist` на
+  `apps/ui/dist`, команды `history_list`, `backup_db`, `open_file`, `open_folder`,
+  `config_get`, `detect_statement`, `process_statement`, `update_check`.
+  `cargo check` проходит (Tauri 2.12).
+- [ ] `crates/tns-excel` и реальный `process_statement` — следующий этап.
+- [ ] Интеграция React UI с Tauri invoke, updater, CI.
 
 ## Проверки
 
@@ -37,6 +42,7 @@
 | `cargo check --manifest-path crates/tns-core/Cargo.toml` | ok |
 | `cargo test --manifest-path crates/tns-core/Cargo.toml` | 6 passed |
 | `cargo test --manifest-path crates/tns-db/Cargo.toml` | 4 passed |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | ok (Tauri 2.12) |
 | `git diff origin/rust-migration -- legacy/pyqt` | пусто |
 
 ## В работе
