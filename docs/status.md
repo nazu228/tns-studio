@@ -21,8 +21,8 @@
   Кнопка «Облако» и S3-бейдж удалены. `npm run typecheck` и `npm run build` проходят.
 - [x] `crates/tns-core` — Rust-порт чистых функций:
   `normalize_header`, `row_type`, `safe_float`, `numeric_value`, `classify_zone`, `total_row`.
-  `cargo check` проходит; unit-тесты написаны.
-- [ ] `cargo test` — ждёт установку MSVC Build Tools (link.exe).
+  `cargo check` и `cargo test` проходят: **6 passed**.
+- [x] MSVC Build Tools + Windows SDK установлены; `scripts/cargo.ps1` запускает cargo в их окружении.
 - [ ] Tauri shell, команды, updater, CI — следующий этап.
 
 ## Проверки
@@ -33,13 +33,12 @@
 | `cd apps/ui && npm run typecheck` | ok |
 | `cd apps/ui && npm run build` | ok (dist) |
 | `cargo check --manifest-path crates/tns-core/Cargo.toml` | ok |
-| `cargo test --manifest-path crates/tns-core/Cargo.toml` | blocked: `link.exe` not found |
+| `cargo test --manifest-path crates/tns-core/Cargo.toml` | 6 passed |
 | `git diff origin/rust-migration -- legacy/pyqt` | пусто |
 
 ## В работе
 
-- Установка Visual Studio Build Tools (workload VCTools + Windows SDK).
-  После неё: `cargo test`, затем Tauri-скелет и интеграция UI с Rust-командами.
+- Tauri-скелет, `crates/tns-db`, `crates/tns-excel`, интеграция UI с Rust-командами.
 
 ## Известные девиации
 

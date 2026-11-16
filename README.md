@@ -57,8 +57,8 @@ python -m pytest tests/parity -q
 ## Rust core
 
 ```powershell
-cargo check --manifest-path crates/tns-core/Cargo.toml
-cargo test  --manifest-path crates/tns-core/Cargo.toml
+.\scripts\cargo.ps1 check --manifest-path crates/tns-core/Cargo.toml
+.\scripts\cargo.ps1 test  --manifest-path crates/tns-core/Cargo.toml
 ```
 
 Портированы чистые функции `normalize_header`, `row_type`, `safe_float`,

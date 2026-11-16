@@ -6,14 +6,14 @@
 
 | Legacy | Контракт | Порт | Статус | Проверка |
 |---|---|---|---|---|
-| `tns_input.py:5` `normalize_header` | нормализация заголовков | `tns-core` | портировано (cargo check) | unit-тесты |
-| `tns_input.py:10` `row_type` | 100/101/102 | `tns-core` | портировано (cargo check) | unit-тесты |
+| `tns_input.py:5` `normalize_header` | нормализация заголовков | `tns-core` | портировано + тесты | unit-тесты |
+| `tns_input.py:10` `row_type` | 100/101/102 | `tns-core` | портировано + тесты | unit-тесты |
 | `tns_input.py:16` `resolve_layout` | колонки + 4 ошибки | `tns-core` | не портировано | golden-фикстуры |
-| `tns_input.py:66` `total_row` | «итого/всего» | `tns-core` | портировано (cargo check) | unit-тесты |
-| `tns_input.py:69` `numeric_value` | парсинг чисел + 2 ошибки | `tns-core` | портировано (cargo check) | unit-тесты |
+| `tns_input.py:66` `total_row` | «итого/всего» | `tns-core` | портировано + тесты | unit-тесты |
+| `tns_input.py:69` `numeric_value` | парсинг чисел + 2 ошибки | `tns-core` | портировано + тесты | unit-тесты |
 | `tns_input.py:76` `extract_metadata` | consumer/contract/period | `tns-core` | не портировано | golden-фикстуры |
-| `core_engine.py:19` `safe_float` | пробелы/запятые/дефисы | `tns-core` | портировано (cargo check) | unit-тесты |
-| `core_engine.py:37` `classify_zone` | day/night/odn | `tns-core` | портировано (cargo check) | unit-тесты |
+| `core_engine.py:19` `safe_float` | пробелы/запятые/дефисы | `tns-core` | портировано + тесты | unit-тесты |
+| `core_engine.py:37` `classify_zone` | day/night/odn | `tns-core` | портировано + тесты | unit-тесты |
 | `core_engine.py:68` `safe_save_workbook` | атомарная запись + fallback | `tns-excel` | не портировано | golden-тесты |
 | `core_engine.py:92` `detect_statement_type` | sha256 + dom/gorod | `tns-core` | не портировано | golden-фикстуры |
 | `core_engine.py:125` `process_statement` | прогресс 5/15/35/65/90/100, 2 листа, формулы, result | `tns-core` + `tns-excel` | не портировано | golden-тесты |
