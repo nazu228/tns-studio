@@ -40,3 +40,21 @@ python legacy/pyqt/app_gui.py
 ```
 
 Нужен Python 3.11+ с PySide6, openpyxl. База создаётся и заполняется автоматически при первом запуске.
+
+## Parity-харнесс (legacy — оракул)
+
+```powershell
+python tests/parity/scripts/gen_fixtures.py
+python tests/parity/scripts/gen_golden.py
+python -m pytest tests/parity -q
+```
+
+Сейчас: 3 фикстуры (dom/gorod/march), golden-выходы legacy и 7 зелёных тестов.
+`legacy/pyqt/` не изменяется: проверка `git diff --exit-code origin/rust-migration -- legacy/pyqt`.
+
+## Статус миграции
+
+- `main` — legacy-снапшот.
+- `rust-migration` — план миграции.
+- `parity-harness` — фикстуры, golden и тесты (готово).
+- Rust/React/Tauri-скелет — следующий этап.
