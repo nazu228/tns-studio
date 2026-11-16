@@ -23,10 +23,10 @@
 
 | Legacy | Контракт | Порт | Статус | Проверка |
 |---|---|---|---|---|
-| `sync_manager.py:295` `init_db` | organizations/houses/tariffs/calculation_history | `tns-db` | не портировано | схема + seed |
-| `sync_manager.py:397` `create_backup` | SQLite backup API | `tns-db` | не портировано | тест бэкапа |
-| `sync_manager.py:441` `record_calculation` | история расчётов | `tns-db` | не портировано | тест |
-| `database_safety.py:8` | validate/stage | `tns-db` | не портировано | тест валидации |
+| `sync_manager.py:295` `init_db` | organizations/houses/tariffs/calculation_history | `tns-db` | портировано + тесты | схема + seed |
+| `sync_manager.py:397` `create_backup` | локальный бэкап | `tns-db` | портировано + тесты | тест бэкапа |
+| `sync_manager.py:441` `record_calculation` | история расчётов | `tns-db` | портировано + тесты | тест |
+| `database_safety.py:8` | validate | `tns-db` | портировано + тесты | тест валидации |
 
 ## UI
 

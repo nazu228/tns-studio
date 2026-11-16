@@ -59,11 +59,13 @@ python -m pytest tests/parity -q
 ```powershell
 .\scripts\cargo.ps1 check --manifest-path crates/tns-core/Cargo.toml
 .\scripts\cargo.ps1 test  --manifest-path crates/tns-core/Cargo.toml
+.\scripts\cargo.ps1 test  --manifest-path crates/tns-db/Cargo.toml
 ```
 
 Портированы чистые функции `normalize_header`, `row_type`, `safe_float`,
-`numeric_value`, `classify_zone`, `total_row`. `cargo test` требует MSVC
-Build Tools (`link.exe`); `cargo check` работает без линкера.
+`numeric_value`, `classify_zone`, `total_row` (6 тестов) и локальная БД
+`tns-db`: схема legacy, seed, история, upsert домов, бэкап, валидация
+(4 теста). `cargo test` требует MSVC Build Tools (`link.exe`).
 
 ## React UI (Vite)
 

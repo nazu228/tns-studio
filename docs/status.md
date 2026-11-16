@@ -23,7 +23,9 @@
   `normalize_header`, `row_type`, `safe_float`, `numeric_value`, `classify_zone`, `total_row`.
   `cargo check` и `cargo test` проходят: **6 passed**.
 - [x] MSVC Build Tools + Windows SDK установлены; `scripts/cargo.ps1` запускает cargo в их окружении.
-- [ ] Tauri shell, команды, updater, CI — следующий этап.
+- [x] `crates/tns-db` — локальная SQLite: схема legacy, seed организаций/тарифов,
+  история расчётов, upsert домов, локальный бэкап, валидация. **4 passed**.
+- [ ] `crates/tns-excel`, `src-tauri`, команды, updater, CI — следующий этап.
 
 ## Проверки
 
@@ -34,6 +36,7 @@
 | `cd apps/ui && npm run build` | ok (dist) |
 | `cargo check --manifest-path crates/tns-core/Cargo.toml` | ok |
 | `cargo test --manifest-path crates/tns-core/Cargo.toml` | 6 passed |
+| `cargo test --manifest-path crates/tns-db/Cargo.toml` | 4 passed |
 | `git diff origin/rust-migration -- legacy/pyqt` | пусто |
 
 ## В работе

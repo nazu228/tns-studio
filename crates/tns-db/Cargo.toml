@@ -1,0 +1,16 @@
+[package]
+name = "tns-db"
+version = "0.1.0"
+edition = "2021"
+description = "Local SQLite storage for TNS Energy Studio (legacy schema, no cloud sync)"
+
+[lib]
+name = "tns_db"
+path = "src/lib.rs"
+
+[dependencies]
+rusqlite = { version = "0.43.0", features = ["bundled"] }
+tns-core = { version = "0.1.0", path = "../tns-core" }
+
+[dev-dependencies]
+tempfile = "3.27.0"
