@@ -54,6 +54,17 @@ python -m pytest tests/parity -q
 (`tests/parity/screenshots/`) и 7 зелёных тестов.
 `legacy/pyqt/` не изменяется: проверка `git diff --exit-code origin/rust-migration -- legacy/pyqt`.
 
+## Rust core
+
+```powershell
+cargo check --manifest-path crates/tns-core/Cargo.toml
+cargo test  --manifest-path crates/tns-core/Cargo.toml
+```
+
+Портированы чистые функции `normalize_header`, `row_type`, `safe_float`,
+`numeric_value`, `classify_zone`, `total_row`. `cargo test` требует MSVC
+Build Tools (`link.exe`); `cargo check` работает без линкера.
+
 ## React UI (Vite)
 
 ```powershell
