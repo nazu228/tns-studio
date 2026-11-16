@@ -60,6 +60,7 @@ python -m pytest tests/parity -q
 .\scripts\cargo.ps1 check --manifest-path crates/tns-core/Cargo.toml
 .\scripts\cargo.ps1 test  --manifest-path crates/tns-core/Cargo.toml
 .\scripts\cargo.ps1 test  --manifest-path crates/tns-db/Cargo.toml
+.\scripts\cargo.ps1 test  --manifest-path crates/tns-excel/Cargo.toml
 ```
 
 Портированы чистые функции `normalize_header`, `row_type`, `safe_float`,

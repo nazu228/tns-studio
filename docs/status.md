@@ -29,7 +29,10 @@
   `apps/ui/dist`, команды `history_list`, `backup_db`, `open_file`, `open_folder`,
   `config_get`, `detect_statement`, `process_statement`, `update_check`.
   `cargo check` проходит (Tauri 2.12).
-- [ ] `crates/tns-excel` и реальный `process_statement` — следующий этап.
+- [x] `crates/tns-excel` — обёртка над `umya-spreadsheet` 3.1.1 (MIT):
+  чтение/запись существующей книги, `safe_save` с атомарной заменой и
+  fallback-копией. **3 passed** (чтение фикстур, round-trip, safe save).
+- [ ] `process_statement` / `resolve_layout` / `extract_metadata` в `tns-core` — следующий этап.
 - [ ] Интеграция React UI с Tauri invoke, updater, CI.
 
 ## Проверки
@@ -43,6 +46,7 @@
 | `cargo test --manifest-path crates/tns-core/Cargo.toml` | 6 passed |
 | `cargo test --manifest-path crates/tns-db/Cargo.toml` | 4 passed |
 | `cargo check --manifest-path src-tauri/Cargo.toml` | ok (Tauri 2.12) |
+| `cargo test --manifest-path crates/tns-excel/Cargo.toml` | 3 passed |
 | `git diff origin/rust-migration -- legacy/pyqt` | пусто |
 
 ## В работе

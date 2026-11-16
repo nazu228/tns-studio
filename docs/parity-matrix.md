@@ -14,7 +14,7 @@
 | `tns_input.py:76` `extract_metadata` | consumer/contract/period | `tns-core` | не портировано | golden-фикстуры |
 | `core_engine.py:19` `safe_float` | пробелы/запятые/дефисы | `tns-core` | портировано + тесты | unit-тесты |
 | `core_engine.py:37` `classify_zone` | day/night/odn | `tns-core` | портировано + тесты | unit-тесты |
-| `core_engine.py:68` `safe_save_workbook` | атомарная запись + fallback | `tns-excel` | не портировано | golden-тесты |
+| `core_engine.py:68` `safe_save_workbook` | атомарная запись + fallback | `tns-excel` | портировано + тесты | unit-тест |
 | `core_engine.py:92` `detect_statement_type` | sha256 + dom/gorod | `tns-core` | не портировано | golden-фикстуры |
 | `core_engine.py:125` `process_statement` | прогресс 5/15/35/65/90/100, 2 листа, формулы, result | `tns-core` + `tns-excel` | не портировано | golden-тесты |
 | Excel-стили `core_engine.py:276–331` | Segoe UI, заливки, границы, `#,##0.000` | `tns-excel` | не портировано | xlsx-сигнатура |
