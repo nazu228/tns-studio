@@ -1,7 +1,8 @@
 # Full verification pass: Rust crates, Tauri shell, parity tests, UI typecheck/build.
 # A fresh git worktree has no node_modules, so UI dependencies are installed first.
 # Usage: .\scripts\verify.ps1 [-RequireRustOutput]
-# -RequireRustOutput turns the pending Rust xlsx acceptance test into a hard gate.
+# -RequireRustOutput makes style/CF/hyperlink diffs fail instead of xfail.
+# Missing Rust output is always a hard failure.
 param([switch]$RequireRustOutput)
 $ErrorActionPreference = "Stop"
 $env:PYTHONUTF8 = "1"
@@ -39,7 +40,14 @@ try {
     Invoke-Step "npm build" { npm --prefix apps/ui run build }
     # Fixtures and golden outputs are the oracle contract. Harness code under
     # tests/parity is allowed to evolve (signature coverage, Rust driver).
-    Invoke-Step "legacy/parity guard" { git diff --exit-code origin/parity-harness -- legacy/pyqt tests/parity/fixtures }
+    # Prefer the local base branch: origin/parity-harness can be stale until the
+    # migration branch is pushed.
+    $guardBase = "origin/parity-harness"
+    git rev-parse --verify --quiet parity-harness *> $null
+    if ($LASTEXITCODE -eq 0) {
+        $guardBase = "parity-harness"
+    }
+    Invoke-Step "legacy/parity guard" { git diff --exit-code $guardBase -- legacy/pyqt tests/parity/fixtures }
 }
 catch {
     $failed = $true
