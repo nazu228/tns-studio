@@ -8,6 +8,7 @@ use std::fmt;
 
 pub mod layout;
 pub mod output;
+pub mod output_style;
 pub mod process;
 pub use layout::*;
 pub use process::*;

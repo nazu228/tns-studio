@@ -305,6 +305,14 @@ pub(crate) fn write_statement(
         ],
     );
 
+    crate::output_style::style_statement(
+        statement,
+        col_start,
+        columns,
+        houses,
+        statement_total_row,
+    )?;
+
     Ok(StatementLayout { col_start, stats })
 }
 
@@ -491,6 +499,8 @@ pub(crate) fn write_summary(
             (10, 24.0),
         ],
     );
+
+    crate::output_style::style_summary(summary, col_start, houses);
 
     // Summary is created at the end; legacy inserts it at index 0. Rotate
     // instead of swap so extra source sheets keep their relative order.

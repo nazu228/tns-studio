@@ -352,8 +352,12 @@ pub fn process_statement(
         90,
         &format!("Сохранение файла в папку {}...", subfolder_name),
     );
-    let (saved_path, warning) = tns_excel::safe_save(&book, &target_path)
-        .map_err(|error| TnsError::Message(error.to_string()))?;
+    // Legacy creates the summary total cell A from an empty string, which
+    // openpyxl writes as t="inlineStr"; umya needs the attribute patched in.
+    let empty_inline = [(0usize, format!("A{}", 6 + houses.len()))];
+    let (saved_path, warning) =
+        tns_excel::safe_save_with_empty_inline(&book, &target_path, &empty_inline)
+            .map_err(|error| TnsError::Message(error.to_string()))?;
 
     emit(
         options.progress,
@@ -389,6 +393,18 @@ mod tests {
     use super::*;
     use serde_json::Value;
     use std::path::{Path, PathBuf};
+    use tns_excel::{
+        ConditionalFormatValues, ConditionalFormattingOperatorValues, HorizontalAlignmentValues,
+        Style, VerticalAlignmentValues,
+    };
+
+    fn fill_rgb(style: &Style) -> Option<String> {
+        style
+            .fill()?
+            .pattern_fill()?
+            .foreground_color()
+            .map(|color| color.argb_str())
+    }
 
     fn fixture(name: &str) -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -585,5 +601,106 @@ mod tests {
         )
         .expect("process");
         assert!(result.target_path.ends_with("custom.xlsx"));
+    }
+
+    #[test]
+    fn writes_legacy_styles_links_and_formatting() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let result = process_statement(
+            &fixture("dom_april_2026.xlsx"),
+            ProcessOptions {
+                output_dir: Some(dir.path().to_path_buf()),
+                month: Some("Апрель".into()),
+                year: Some("2026".into()),
+                ..Default::default()
+            },
+        )
+        .expect("process");
+        let book = tns_excel::read(&result.target_path).expect("read output");
+
+        {
+            let statement = book.sheet(1).expect("statement");
+            let ad10 = statement.cell("AD10").expect("AD10");
+            let style = ad10.style();
+            assert_eq!(style.font().map(|font| font.name()), Some("Segoe UI"));
+            assert_eq!(style.font().map(|font| font.size()), Some(9.0));
+            assert_eq!(style.font().map(|font| font.bold()), Some(true));
+            assert!(fill_rgb(style).is_some_and(|rgb| rgb.ends_with("FFF2CC")));
+            let alignment = style.alignment().expect("AD10 alignment");
+            assert_eq!(*alignment.horizontal(), HorizontalAlignmentValues::Center);
+            assert_eq!(*alignment.vertical(), VerticalAlignmentValues::Center);
+            assert!(alignment.wrap_text());
+
+            let ae10 = statement.cell("AE10").expect("AE10");
+            assert_eq!(ae10.value().as_ref(), "В работе (с расходом)");
+            assert!(fill_rgb(ae10.style()).is_some_and(|rgb| rgb.ends_with("1F4E79")));
+            assert_eq!(ae10.style().font().map(|font| font.bold()), Some(true));
+            let alignment = ae10.style().alignment().expect("AE10 alignment");
+            assert_eq!(*alignment.horizontal(), HorizontalAlignmentValues::Center);
+            assert!(alignment.wrap_text());
+        }
+
+        let summary = book.sheet(0).expect("summary");
+
+        let link = summary.cell("B6").expect("B6").hyperlink().expect("link");
+        assert_eq!(link.url(), "#'Ведомость ЭП'!AF9");
+        assert!(!link.location());
+        assert!(link.tooltip().is_empty());
+        assert_eq!(
+            summary.cell("B7").expect("B7").hyperlink().expect("link").url(),
+            "#'Ведомость ЭП'!AF15"
+        );
+
+        let formats = summary.conditional_formatting_collection();
+        assert_eq!(formats.len(), 1);
+        assert_eq!(formats[0].sequence_of_references().get_sqref(), "H6:H8");
+        let rules = formats[0].conditional_collection();
+        assert_eq!(rules.len(), 2);
+        assert_eq!(*rules[0].get_type(), ConditionalFormatValues::CellIs);
+        assert_eq!(
+            *rules[0].operator(),
+            ConditionalFormattingOperatorValues::Equal
+        );
+        assert_eq!(rules[0].priority(), 1);
+        assert!(rules[0].stop_if_true());
+        assert_eq!(
+            *rules[1].operator(),
+            ConditionalFormattingOperatorValues::NotEqual
+        );
+        assert_eq!(rules[1].priority(), 2);
+        assert!(rules[1].stop_if_true());
+
+        let total_row = 6 + result.houses_count;
+        for column in ["A", "I", "J"] {
+            let coordinate = format!("{}{}", column, total_row);
+            let cell = summary
+                .cell(coordinate.as_str())
+                .unwrap_or_else(|| panic!("missing total cell {}", coordinate));
+            assert_eq!(cell.value().as_ref(), "");
+            assert!(fill_rgb(cell.style()).is_some_and(|rgb| rgb.ends_with("D9E1F2")));
+            assert_eq!(cell.style().font().map(|font| font.bold()), Some(true));
+            assert_eq!(cell.style().font().map(|font| font.size()), Some(10.0));
+        }
+
+        // Legacy leaves C/D/E/G at the workbook default font (Calibri 11).
+        for coordinate in ["C6", "G6"] {
+            let font = summary
+                .cell(coordinate)
+                .expect(coordinate)
+                .style()
+                .font()
+                .expect("font");
+            assert_eq!(font.name(), "Calibri");
+            assert_eq!(font.size(), 11.0);
+        }
+        let h6 = summary
+            .cell("H6")
+            .expect("H6")
+            .style()
+            .font()
+            .expect("font");
+        assert_eq!(h6.name(), "Segoe UI");
+        assert_eq!(h6.size(), 10.0);
+        assert!(h6.bold());
     }
 }
