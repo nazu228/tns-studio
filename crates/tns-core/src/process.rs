@@ -514,6 +514,63 @@ mod tests {
     }
 
     #[test]
+    fn writes_output_workbook_layout() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let result = process_statement(
+            &fixture("dom_april_2026.xlsx"),
+            ProcessOptions {
+                output_dir: Some(dir.path().to_path_buf()),
+                month: Some("Апрель".into()),
+                year: Some("2026".into()),
+                ..Default::default()
+            },
+        )
+        .expect("process");
+
+        assert!(Path::new(&result.target_path).is_file());
+        assert!(result.warning.is_none());
+
+        let mut book = tns_excel::read(&result.target_path).expect("read output");
+        assert_eq!(book.sheet_count(), 2);
+        assert_eq!(book.sheet(0).expect("summary").name(), "Сводка по домам");
+        assert_eq!(book.sheet(1).expect("statement").name(), "Ведомость ЭП");
+
+        {
+            let summary = book.sheet_mut(0).expect("summary");
+            assert_eq!(summary.merge_cells().len(), 3);
+            assert_eq!(summary.column_dimension("A").expect("A").width(), 6.0);
+            assert_eq!(summary.row_dimension(1).expect("row 1").height(), 24.0);
+            assert_eq!(
+                summary.cell((2, 6)).expect("B6").formula(),
+                "'Ведомость ЭП'!C9"
+            );
+            let pane = summary
+                .sheet_views_mut()
+                .sheet_view_list()
+                .first()
+                .and_then(|view| view.pane())
+                .expect("freeze pane");
+            assert_eq!(pane.top_left_cell().get_coordinate(), "C6");
+        }
+
+        {
+            let statement = book.sheet_mut(1).expect("statement");
+            assert_eq!(
+                statement.cell((32, 9)).expect("AF9").formula(),
+                "SUM(AB10, AB11, AB12)"
+            );
+            assert_eq!(
+                statement.cell((38, 9)).expect("AL9").formula(),
+                "IF(AK9=0, \"✔ Сошлось\", \"❌ Ошибка\")"
+            );
+            assert_eq!(
+                statement.column_dimension("AD").expect("AD").width(),
+                24.0
+            );
+        }
+    }
+
+    #[test]
     fn custom_filename_is_applied() {
         let dir = tempfile::tempdir().expect("tempdir");
         let result = process_statement(
