@@ -57,19 +57,18 @@ TNS Energy Studio — Windows-приложение для обработки в�
 
 | Компонент | Состояние | Тесты |
 |---|---|---|
-| `tests/parity` | 3 фикстуры (dom/gorod/march), golden JSON+xlsx, 5 скриншотов legacy, независимый `xlsx_signature` | **19 passed, 3 xfailed** |
-| `crates/tns-excel` | Обёртка `umya-spreadsheet` 3.1.1: чтение/запись существующей книги, `safe_save` | **3 passed** |
-| `crates/tns-core` | `normalize_header`, `row_type`, `safe_float`, `numeric_value`, `classify_zone`, `total_row`, `resolve_layout`, `extract_metadata`, `detect_statement_type`, `process_statement` (парсинг/итоги/result/прогресс/отмена) | **15 passed** |
-| `crates/tns-core` output writer | срез 1: «Ведомость ЭП» + «Сводка по домам», формулы/merge/freeze C6/ширины/`safe_save` | layout-golden на 3 фикстурах |
+| `tests/parity` | 3 фикстуры (dom/gorod/march), golden JSON+xlsx, 5 скриншотов legacy, независимый `xlsx_signature` | **22 passed, 0 xfailed** |
+| `crates/tns-excel` | Обёртка `umya-spreadsheet` 3.1.1: чтение/запись, `safe_save`, узкие xlsx post-processors | **5 passed** |
+| `crates/tns-core` | `normalize_header`, `row_type`, `safe_float`, `numeric_value`, `classify_zone`, `total_row`, `resolve_layout`, `extract_metadata`, `detect_statement_type`, `process_statement` (парсинг/итоги/result/прогресс/отмена) | **16 passed** |
+| `crates/tns-core` output writer | срез 1+2: «Ведомость ЭП» + «Сводка по домам», формулы/merge/freeze/размеры/стили/CF/hyperlink/`safe_save` | full xlsx-golden 0 diffs на 3 фикстурах |
 | `crates/tns-db` | Схема legacy, seed, история, upsert домов, локальный бэкап, валидация | **4 passed** |
 | `src-tauri` | Tauri 2 shell, окно 1280×880, 8 команд; `detect_statement`/`process_statement` пока заглушки | `cargo check` ok |
 | `apps/ui` | React/Vite главное окно TNS, design parity; данные пока моковые | `typecheck` + `build` ok |
 
-Итого **22 Rust-теста** и **19 pytest passed, 3 xfailed**. `process_statement` уже совпадает с golden по `result` на dom/gorod: consumer/contract/period, houses_count, totals, balance, preview_rows, columns_used, события прогресса и отмена; срез 1 writer'а совпадает по layout-xlsx на всех 3 фикстурах, полный xlsx-сигнал ждёт стилей.
+Итого **25 Rust-тестов** и **22 pytest passed, 0 xfailed**. `process_statement` совпадает с golden по `result` на dom/gorod; writer совпадает по полному xlsx-сигналу на всех 3 фикстурах, включая стили/CF/hyperlink.
 
 ### Чего ещё нет
 
-- **Выходная книга, срез 2**: стили Segoe UI, заливки, границы, number formats, CF `H6:Hn`, hyperlink, полная xlsx-сигнатура.
 - **Tauri**: реальные `detect_statement`/`process_statement`, прогресс/отмена, запись в SQLite.
 - **UI**: `invoke`/`listen` вместо мока, прогресс/ошибки/отмена/история.
 - **Updater/CI**: `.github/workflows/release.yml`, `latest.json`, minisign/Authenticode.
@@ -119,7 +118,8 @@ tns-studio/
 - golden-тест: result + значения/формулы/merge/freeze/ширины против `tests/parity/fixtures/golden/*.xlsx`.
 Стили/CF/hyperlink — следующий срез.
 
-### Срез 2 — output styles
+### Срез 2 — output styles (готов)
+**Статус: закрыт**; полный `xlsx_signature` — 0 diffs на 3 фикстурах, pytest 22/0. Ниже — исходная постановка для истории.
 `crates/tns-core/src/output_style.rs`:
 - Segoe UI 9/10/13; заливки `FFF2CC/D9E1F2/E2EFDA/F2F2F2/BDD7EE/F2F4F7/1F4E79`;
 - границы thin `D3D3D3` / double `1F4E79`; `#,##0.000`; alignment/wrap;
@@ -176,7 +176,7 @@ tns-studio/
 .\scripts\verify.ps1
 ```
 
-Release gate для полного xlsx-паритета (после среза 2):
+Release gate для полного xlsx-паритета (обязателен после среза 2):
 
 ```powershell
 .\scripts\verify.ps1 -RequireRustOutput
@@ -193,8 +193,10 @@ cargo build --manifest-path crates/tns-parity/Cargo.toml
 python -m pytest tests/parity -q
 npm --prefix apps/ui run typecheck
 npm --prefix apps/ui run build
-git diff --exit-code origin/parity-harness -- legacy/pyqt tests/parity/fixtures
+git diff --exit-code parity-harness -- legacy/pyqt tests/parity/fixtures
 ```
+
+Guard использует локальную базу `parity-harness`, потому что `origin/parity-harness` может быть устаревшим до push. В CI после push можно сравнивать с `origin/parity-harness`.
 
 Если `cargo` не находит `link.exe` — используй `.\scripts\cargo.ps1` или окружение MSVC Build Tools (`vcvars64.bat`). UI `dist` не коммитить.
 
@@ -212,9 +214,11 @@ git diff --exit-code origin/parity-harness -- legacy/pyqt tests/parity/fixtures
 8. **Squad**: агенты уже трижды падали на больших срезах (лимит шагов, пустой отчёт без коммита). Давай маленькие задачи, требуй коммит после каждого файла/теста; отчёт без коммита = failed.
 9. **`apps/ui/data.ts`** — мок; после invoke удалить, иначе риск расхождения с golden.
 10. **`src-tauri/gen/schemas/*`** может перегенерироваться `cargo check` с LF; не коммить случайные EOL-изменения.
-11. **Layout-гейт**: `xlsx_signature(include_styles=False)` — enforced для среза 1; полный сигнал включается только `scripts/verify.ps1 -RequireRustOutput`, пока стили не готовы. Не ослаблять layout-тест.
+11. **Xlsx-гейт**: layout `include_styles=False` и полный `xlsx_signature` enforced; полный gate запускается `scripts/verify.ps1 -RequireRustOutput`. Пропавший output — всегда hard fail, style/CF/hyperlink diff при `TNS_REQUIRE_RUST_OUTPUT=1` — fail. Не ослаблять тесты.
 12. **umya ширины**: соседние `<col>` с одинаковой шириной coalesce; writer сдвигает вторую на `1e-7`, openpyxl `round(6)` это скрывает. Не убирать хак без замены.
 13. **Multi-sheet**: writer/parser используют `book.sheet(0)`, legacy — `wb.active`; порядок сводки для extra-листов исправлен, active-sheet вход пока не поддержан.
+14. **umya пустой `<diagonal/>`**: при любом border umya пишет пустой diagonal, openpyxl видит `Side(None,None)` вместо `None`. `tns-excel` удаляет пустой diagonal только у границ со стилем; не удалять у borderless-ячеек.
+15. **Пустая A итоговой строки**: legacy/openpyxl пишет `t="inlineStr"`; umya — numeric. `tns-excel` ставит `t="inlineStr"` только для переданной пустой координаты (A{6+houses.len()}). Не превращать это в общий inline-string writer без тестов.
 
 ---
 
@@ -222,10 +226,11 @@ git diff --exit-code origin/parity-harness -- legacy/pyqt tests/parity/fixtures
 
 В репозитории есть `graphify-out/`:
 
-- `graph.json` — граф (719 узлов, 1511 рёбер, 36 сообществ на момент сборки);
+- `graph.json` — граф (877 узлов, 1898 рёбер, 50 сообществ на момент сборки);
 - `graph.html` — интерактивная карта;
 - `GRAPH_REPORT.md` — отчёт: god nodes, связи, сообщества, циклы;
 - `manifest.json` — манифест для `--update`.
+...
 
 Команды:
 
@@ -243,8 +248,8 @@ graphify update .          # после изменений кода, без LLM
 ## 11. Первый шаг нового чата
 
 1. Прочитай `docs/HANDOFF_PROMPT.md`, `docs/status.md`, `graphify-out/GRAPH_REPORT.md`.
-2. Запусти `.\scripts\verify.ps1` — убедись, что база зелёная: 22 Rust-теста, 19 pytest passed / 3 xfailed.
-3. Возьми **срез 2 (output styles: стили, number formats, CF, hyperlink)**. Не пытайся закрыть всё сразу.
+2. Запусти `.\scripts\verify.ps1` — убедись, что база зелёная: 25 Rust-тестов, 22 pytest passed / 0 xfailed.
+3. Возьми **срез 3 (Tauri commands)**. Не пытайся закрыть всё сразу.
 4. После каждого файла/теста — коммит. После среза — `cargo test` + `pytest` + `graphify update .`; финальный gate — `.\scripts\verify.ps1 -RequireRustOutput`.
 5. Если поведение legacy неоднозначно — читай `legacy/pyqt/core_engine.py` и `tests/parity/parity_lib.py`, не выдумывай.
 

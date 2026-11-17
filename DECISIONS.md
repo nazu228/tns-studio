@@ -8,7 +8,7 @@
 
 **Why:** the verifier must stay independent from both implementations. Testing Rust output with a Rust extractor would hide shared blind spots.
 
-**Consequence:** `test_rust_result_matches_golden` is enforced now. `test_rust_xlsx_matches_golden` is xfailed while `process_statement` does not write the output workbook; it becomes the acceptance test for that slice. Use `scripts/verify.ps1 -RequireRustOutput` as the release gate once the writer lands.
+**Consequence:** `test_rust_result_matches_golden` is enforced now. `test_rust_xlsx_matches_golden` became the acceptance test for the writer; after slice 2 it passes on all three fixtures. Use `scripts/verify.ps1 -RequireRustOutput` as the release gate.
 
 **Tried and rejected:** `rust_xlsxwriter` cannot modify an existing workbook; Harness² is benchmark-oriented and does not replace the golden oracle.
 
@@ -20,7 +20,7 @@
 
 **Why:** the slice can be verified with the independent openpyxl oracle without accepting style regressions or weakening the full gate.
 
-**Consequence:** missing Rust output is a hard failure for both xlsx tests after slice 1; the full test xfails only on style/CF/hyperlink diffs until slice 2. `TNS_REQUIRE_RUST_OUTPUT=1` turns those diffs into failures.
+**Consequence:** missing Rust output is a hard failure for both xlsx tests after slice 1. The full test xfailed only on style/CF/hyperlink diffs until slice 2; since slice 2 it passes and `TNS_REQUIRE_RUST_OUTPUT=1` hard-fails any future presentation diff.
 
 **Tried and rejected:** xfail on missing output after the writer landed (it would hide a writer regression); comparing Rust output with a Rust extractor (shared blind spots).
 
@@ -47,3 +47,27 @@
 **Consequence:** multi-sheet input with a non-zero active sheet is not supported yet; it may fail early or read the cover sheet. Add an active-sheet test before enabling it.
 
 **Tried and rejected:** `swap(0, 1)` for the summary (broke extra-sheet order when more than two sheets).
+
+## 2026-11-17 — Full xlsx signature is now the release gate
+
+**Context:** slice 2 ported fonts, fills, borders, number formats, conditional formatting and hyperlinks. The full `xlsx_signature` now matches the golden on dom/gorod/march, and pytest is 22 passed / 0 xfailed with and without `TNS_REQUIRE_RUST_OUTPUT=1`.
+
+**Decision:** the full signature is the release gate. `scripts/verify.ps1 -RequireRustOutput` must be green before merge/release; the layout signature remains a faster regression signal.
+
+**Why:** the workbook is a user-facing deliverable; layout parity alone would accept visible style regressions.
+
+**Consequence:** any style/CF/hyperlink or output regression fails the gate. Missing output is always a hard failure even without the flag.
+
+**Tried and rejected:** keeping the full test xfailed after styles landed; relying only on layout parity.
+
+## 2026-11-17 — Narrow umya xlsx presentation sanitizers
+
+**Context:** umya-spreadsheet 3.1.1 always writes `<diagonal/>` for a border, even when the diagonal is empty, and writes an empty styled cell as numeric rather than `inlineStr`. openpyxl reports `diagonal: Side(None, None)` instead of `None`, and `t: n` instead of `t: inlineStr`, so the full golden signature differs even though the visible workbook is correct.
+
+**Decision:** `tns-excel` post-processes only `xl/styles.xml` (remove `<diagonal/>`/`<diagonal />` from borders that have at least one styled side) and the specified empty summary cell (add `t="inlineStr"`). `process_statement` passes only `A{6 + houses.len()}` on the summary sheet. All other XML, values, styles and non-empty diagonals are preserved.
+
+**Why:** the changes are semantic no-ops for Excel but make the independent oracle compare like for like, without weakening `tests/parity` or special-casing the oracle.
+
+**Consequence:** every `tns-excel::write` rewrites the zip styles.xml; tests cover empty/non-empty diagonals and the inline-string marker. The behavior is tied to umya 3.1.1 and should be revisited when the writer stops emitting the empty diagonal or supports inline strings.
+
+**Tried and rejected:** changing `xlsx_signature` to ignore diagonals/inlineStr (weakens the oracle); accepting an xfail after slice 2; manipulating `origin/parity-harness` to make the guard pass (not a verification method).

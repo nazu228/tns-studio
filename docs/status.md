@@ -1,6 +1,6 @@
 # Статус миграции TNS Energy Studio
 
-Обновлено: 2026-11-17. Ветка: `parity-harness` (срез 1 output workbook).
+Обновлено: 2026-11-17. Ветка: `parity-harness` (срез 2 output workbook).
 
 ## Сделано
 
@@ -17,8 +17,8 @@
     hyperlinks, hidden rows/cols, defined names, validations) и layout-режим
     `include_styles=False` для среза writer'а;
   - `crates/tns-parity` — драйвер Rust-результата для pytest;
-  - pytest-харнесс: **19 passed, 3 xfailed** (полный xlsx-сигнал ждёт стилей
-    среза 2; layout-паритет на 3 фикстурах уже enforced).
+  - pytest-харнесс: **22 passed, 0 xfailed** (полный xlsx-сигнал enforced;
+    layout-паритет на 3 фикстурах).
 
 ### Phase 1 — скелет
 - [x] `apps/ui` — Vite + React + TS, главное окно TNS (design parity):
@@ -36,18 +36,20 @@
   `cargo check` проходит (Tauri 2.12).
 - [x] `crates/tns-excel` — обёртка над `umya-spreadsheet` 3.1.1 (MIT):
   чтение/запись существующей книги, `safe_save` с атомарной заменой и
-  fallback-копией. **3 passed** (чтение фикстур, round-trip, safe save).
+  fallback-копией; узкие post-processors для пустого `<diagonal/>` и пустой
+  inlineStr-ячейки. **5 passed**.
 - [x] `tns-core`: `resolve_layout`, `extract_metadata`, `detect_statement_type`
   портированы и проверены на dom/gorod фикстурах; **10 passed**.
 - [x] `process_statement` — парсинг домов/ПУ/субабонентов, валидация billed values,
   period/paths/имена, итоги, `preview_rows`, `balance`, прогресс 5/15/35/65/90/100,
-  отмена. Result совпадает с golden на dom/gorod; **15 passed**.
+  отмена. Result совпадает с golden на dom/gorod; **16 passed**.
 - [x] Выходная книга, срез 1: лист «Ведомость ЭП» (значения, формулы SUM/ROUND/IF,
   субабоненты), лист «Сводка по домам» первым, merge A1:J1/A2:J2/A3:J3, freeze C6,
   ширины/высоты, `safe_save`, фактический `target_path`/`warning`. Layout-паритет
-  с golden на всех 3 фикстурах; Rust — 15 тестов.
-- [ ] Выходная книга, срез 2: стили Segoe UI, заливки, границы, number formats,
-  CF H6:Hn, hyperlink, полная xlsx-сигнатура.
+  с golden на всех 3 фикстурах.
+- [x] Выходная книга, срез 2: стили Segoe UI, заливки, границы, number formats,
+  CF `H6:Hn`, hyperlink B6/B7; полный `xlsx_signature` — **0 diffs** на всех 3
+  фикстурах, pytest **22 passed / 0 xfailed**.
 - [ ] Tauri `detect_statement`/`process_statement`, UI invoke, updater/CI.
 - [ ] Интеграция React UI с Tauri invoke, updater, CI.
 
@@ -55,20 +57,21 @@
 
 | Проверка | Результат |
 |---|---|
-| `python -m pytest tests/parity -q` | 19 passed, 3 xfailed |
+| `python -m pytest tests/parity -q` | 22 passed, 0 xfailed |
+| `$env:TNS_REQUIRE_RUST_OUTPUT='1'; python -m pytest tests/parity -q` | 22 passed |
 | `cd apps/ui && npm run typecheck` | ok |
 | `cd apps/ui && npm run build` | ok (dist) |
 | `cargo check --manifest-path crates/tns-core/Cargo.toml` | ok |
-| `cargo test --manifest-path crates/tns-core/Cargo.toml` | 15 passed |
+| `cargo test --manifest-path crates/tns-core/Cargo.toml` | 16 passed |
 | `cargo test --manifest-path crates/tns-db/Cargo.toml` | 4 passed |
 | `cargo check --manifest-path src-tauri/Cargo.toml` | ok (Tauri 2.12) |
-| `cargo test --manifest-path crates/tns-excel/Cargo.toml` | 3 passed |
+| `cargo test --manifest-path crates/tns-excel/Cargo.toml` | 5 passed |
 | `cargo build --manifest-path crates/tns-parity/Cargo.toml` | ok |
-| `git diff origin/parity-harness -- legacy/pyqt tests/parity/fixtures` | пусто |
+| `git diff parity-harness -- legacy/pyqt tests/parity/fixtures` | пусто |
 
 ## В работе
 
-- Срез 2: стили, number formats, CF H6:Hn, hyperlink и полный xlsx-сигнал.
+- Tauri commands: реальные `detect_statement`/`process_statement`, прогресс/отмена, запись в БД.
 
 ## Известные девиации
 
@@ -79,12 +82,14 @@
 - Writer рассчитан на один исходный лист. Legacy берёт `wb.active`, Rust пока
   `book.sheet(0)`; порядок сводки для extra-листов исправлен, но active-sheet
   multi-sheet вход требует отдельного фикса и теста.
+- `tns-excel` делает узкий post-processing xlsx: удаляет пустой `<diagonal/>`
+  только у границ со стилем и ставит `t="inlineStr"` пустой ячейке A итоговой
+  строки сводки. Это компенсация ограничений umya, не ослабление oracle.
 
 ## Следующие шаги
 
-1. Срез 2 — output styles/CF/hyperlink; снять 3 xfail полного xlsx-теста.
-2. `src-tauri`: реальные `detect_statement`/`process_statement`, прогресс/отмена, запись в БД.
-3. UI invoke/listen вместо мока; прогресс/ошибка/отмена/история; дизайн не менять.
-4. Updater/CI: GitHub Releases + `latest.json` + minisign/Authenticode.
-5. `graphify update .` после среза 2.
-6. Critic + полный `scripts/verify.ps1 -RequireRustOutput`.
+1. `src-tauri`: реальные `detect_statement`/`process_statement`, прогресс/отмена, запись в БД.
+2. UI invoke/listen вместо мока; прогресс/ошибка/отмена/история; дизайн не менять.
+3. Updater/CI: GitHub Releases + `latest.json` + minisign/Authenticode.
+4. Critic + полный `scripts/verify.ps1 -RequireRustOutput`.
+5. `graphify update .` после изменений кода (срез 2 уже обновлён).
