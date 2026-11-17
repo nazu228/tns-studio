@@ -3885,6 +3885,7 @@ dependencies = [
  "chrono",
  "tempfile",
  "umya-spreadsheet",
+ "zip",
 ]
 
 [[package]]
