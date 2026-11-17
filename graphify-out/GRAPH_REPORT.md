@@ -1,29 +1,29 @@
-# Graph Report - tns-studio  (2026-11-16)
+# Graph Report - tns-review  (2026-11-17)
 
 ## Corpus Check
-- 60 files · ~54,963 words
+- 67 files · ~61,005 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 5 file(s) not represented in the graph (top: .ico 2, (none) 1, .css 1)
+- Unclassified: 6 file(s) not represented in the graph (top: (none) 2, .ico 2, .css 1)
 
 ## Summary
-- 719 nodes · 1511 edges · 36 communities (17 shown, 19 thin omitted)
-- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 168 edges (avg confidence: 0.91)
+- 809 nodes · 1734 edges · 40 communities (22 shown, 18 thin omitted)
+- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 193 edges (avg confidence: 0.91)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `70c07265`
+- Built from commit: `8b8699c9`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - sync_manager.py
 - process.rs
-- core_engine.py
+- process_statement
 - tns-db/src/lib.rs
 - TNSEnergyStudioWindow
 - App.tsx
 - DatabaseManager
-- test_parity.py
+- xlsx_signature
 - S3Config
 - tns-excel/src/lib.rs
 - columns
@@ -34,10 +34,11 @@
 - UpdateModalDialog
 - DiagnosticService
 - gen_fixtures.py
-- Статус миграции TNS Energy Studio
-- CheckUpdatesWorker
+- output.rs
+- ui_sync_components.py
+- layout.rs
 - DownloadUpdateWorker
-- SyncPushWorker
+- tns-core/src/lib.rs
 - tns-core
 - dom_april_2026_d7804be7.md
 - dom_march_2026_705de24c.md
@@ -47,56 +48,63 @@
 - dom_april_2026_394e4478.md
 - dom_march_2026_e13491e6.md
 - gorod_april_2026_78d6ee3c.md
+- HANDOFF PROMPT — TNS Energy Studio: миграция на Rust + React + Tauri
+- TNS Energy Studio — миграция на Rust + React + Tauri
+- TnsError
+- StatementKind
 
 ## God Nodes (most connected - your core abstractions)
 1. `TNSEnergyStudioWindow` - 40 edges
 2. `CloudSyncDialog` - 35 edges
-3. `S3Config` - 29 edges
-4. `process_statement()` - 25 edges
-5. `DatabaseManager` - 25 edges
-6. `SyncError` - 24 edges
-7. `main()` - 23 edges
-8. `1. Модули` - 22 edges
-9. `process_statement()` - 21 edges
-10. `CloudDatabaseSync` - 21 edges
+3. `process_statement()` - 32 edges
+4. `S3Config` - 29 edges
+5. `xlsx_signature()` - 28 edges
+6. `process_statement()` - 25 edges
+7. `DatabaseManager` - 25 edges
+8. `SyncError` - 24 edges
+9. `main()` - 23 edges
+10. `1. Модули` - 22 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `4. Tauri-команды v1 (проект, финализирует `tauri-shell`)` --references--> `process_statement()`  [INFERRED]
-  docs/inventory.md → legacy/pyqt/core_engine.py
+- `2026-11-17 — Slice 1 gates the workbook through the layout signature` --references--> `process_statement()`  [INFERRED]
+  DECISIONS.md → legacy/pyqt/core_engine.py
+- `9. Известные ловушки (проверено на практике)` --references--> `process_statement()`  [INFERRED]
+  docs/HANDOFF_PROMPT.md → legacy/pyqt/core_engine.py
+- `Срез 3 — Tauri commands` --references--> `process_statement()`  [INFERRED]
+  docs/HANDOFF_PROMPT.md → legacy/pyqt/core_engine.py
 - `3. Целевая архитектура` --references--> `process_statement()`  [INFERRED]
   docs/TNS_MIGRATION_PLAN.md → legacy/pyqt/core_engine.py
 - `Phase 0 — Инвентарь, фикстуры, замеры (первый заход squad)` --references--> `process_statement()`  [INFERRED]
   docs/TNS_MIGRATION_PLAN.md → legacy/pyqt/core_engine.py
-- ``tns_input.py`` --references--> `normalize_header()`  [INFERRED]
-  docs/inventory.md → legacy/pyqt/tns_input.py
-- `1. Модули` --references--> `TNSEnergyStudioWindow`  [INFERRED]
-  docs/inventory.md → legacy/pyqt/app_gui.py
 
 ## Import Cycles
 - 2-file cycle: `crates/tns-core/src/lib.rs -> crates/tns-core/src/process.rs -> crates/tns-core/src/lib.rs`
+- 2-file cycle: `crates/tns-core/src/output.rs -> crates/tns-core/src/process.rs -> crates/tns-core/src/output.rs`
 - 2-file cycle: `crates/tns-core/src/layout.rs -> crates/tns-core/src/lib.rs -> crates/tns-core/src/layout.rs`
 - 3-file cycle: `crates/tns-core/src/layout.rs -> crates/tns-core/src/lib.rs -> crates/tns-core/src/process.rs -> crates/tns-core/src/layout.rs`
+- 3-file cycle: `crates/tns-core/src/lib.rs -> crates/tns-core/src/process.rs -> crates/tns-core/src/output.rs -> crates/tns-core/src/lib.rs`
+- 4-file cycle: `crates/tns-core/src/layout.rs -> crates/tns-core/src/lib.rs -> crates/tns-core/src/process.rs -> crates/tns-core/src/output.rs -> crates/tns-core/src/layout.rs`
 
-## Communities (36 total, 19 thin omitted)
+## Communities (40 total, 18 thin omitted)
 
 ### Community 0 - "sync_manager.py"
-Cohesion: 0.06
-Nodes (34): atomic_json(), _Blob, CloudDatabaseSync, config_data(), credentials(), database_differs(), _dpapi(), _prefix() (+26 more)
+Cohesion: 0.05
+Nodes (39): atomic_json(), _Blob, CloudDatabaseSync, config_data(), credentials(), database_differs(), _dpapi(), _prefix() (+31 more)
 
 ### Community 1 - "process.rs"
-Cohesion: 0.05
-Nodes (58): cell(), detect_statement_type(), detects_statement_kinds(), empty_sheet_is_rejected(), extract_metadata(), extract_period(), extracts_metadata(), fixture() (+50 more)
+Cohesion: 0.14
+Nodes (19): assert_number(), assert_preview_rows(), billed_value(), cancellation_has_legacy_message(), cell(), custom_filename_is_applied(), emit(), fixture() (+11 more)
 
-### Community 2 - "core_engine.py"
-Cohesion: 0.07
-Nodes (37): 1. Модули, Parity-харнесс, UI, БД, Матрица паритета legacy → Rust / React / Tauri, Обновления, Ядро, Phase 1 — скелет (+29 more)
+### Community 2 - "process_statement"
+Cohesion: 0.06
+Nodes (47): 4. Текущее состояние (факты), Чего ещё нет, 1. Модули, 2. Контракты ядра, 3. БД (legacy `sync_manager.py:init_db`), 4. Tauri-команды v1 (проект, финализирует `tauri-shell`), 5. UI-токены (QSS `app_gui.py:apply_theme`), 6. Удаляется вместе с Yandex (+39 more)
 
 ### Community 3 - "tns-db/src/lib.rs"
-Cohesion: 0.07
-Nodes (24): backs_up_and_validates(), CalculationRecord, creates_legacy_schema_and_seed(), Database, DbError, Io, Message, Sql (+16 more)
+Cohesion: 0.06
+Nodes (29): backs_up_and_validates(), CalculationRecord, creates_legacy_schema_and_seed(), Database, DbError, Io, Message, Sql (+21 more)
 
 ### Community 4 - "TNSEnergyStudioWindow"
-Cohesion: 0.07
+Cohesion: 0.06
 Nodes (5): main(), TNSEnergyStudioWindow, S3StatusBadge, ToastManager, ToastNotification
 
 ### Community 5 - "App.tsx"
@@ -107,16 +115,12 @@ Nodes (39): dependencies, react@^19.3.1, react-dom@^19.3.1, devDependencies, @ty
 Cohesion: 0.09
 Nodes (4): calculate_file_sha256(), DatabaseManager, ResilientHttpClient, DatabaseViewerDialog
 
-### Community 7 - "test_parity.py"
-Cohesion: 0.11
-Nodes (15): fixtures_manifest(), golden_manifest(), parity_dirs(), ParityDirs, diff_dicts(), normalize_result(), run_oracle(), sha256_file() (+7 more)
-
-### Community 8 - "S3Config"
-Cohesion: 0.10
-Nodes (11): 2. Контракты ядра, 3. БД (legacy `sync_manager.py:init_db`), 4. Tauri-команды v1 (проект, финализирует `tauri-shell`), 5. UI-токены (QSS `app_gui.py:apply_theme`), 6. Удаляется вместе с Yandex, `core_engine.py`, `tns_input.py`, Инвентарь legacy/pyqt и контракты для миграции (+3 more)
+### Community 7 - "xlsx_signature"
+Cohesion: 0.07
+Nodes (40): 2026-11-17 — Output writer assumes the statement is sheet 0, 2026-11-17 — Slice 1 gates the workbook through the layout signature, 2026-11-17 — The xlsx signature is the shared parity oracle, 2026-11-17 — umya coalesces equal adjacent column widths, Decisions, _alignment_signature(), _border_signature(), _color_signature() (+32 more)
 
 ### Community 9 - "tns-excel/src/lib.rs"
-Cohesion: 0.14
+Cohesion: 0.12
 Nodes (15): ExcelError, Io, Message, Read, Write, ExcelResult, FALLBACK_WARNING, fixture() (+7 more)
 
 ### Community 10 - "columns"
@@ -139,33 +143,57 @@ Nodes (16): 10. Задачи первого захода squad (Phase 0–1), 1.
 Cohesion: 0.36
 Nodes (6): build_statement(), comma_fmt(), fmt(), main(), rnd(), sha256_file()
 
-### Community 18 - "Статус миграции TNS Energy Studio"
-Cohesion: 0.25
-Nodes (7): Phase 0 — parity-база, В работе, Известные девиации, Проверки, Сделано, Следующие шаги, Статус миграции TNS Energy Studio
+### Community 18 - "output.rs"
+Cohesion: 0.22
+Nodes (18): column_letter(), cell_formula(), cell_number(), cell_text(), HouseStats, open_statement(), set_column_widths(), set_frozen_at_c6() (+10 more)
+
+### Community 20 - "layout.rs"
+Cohesion: 0.22
+Nodes (12): cell(), detect_statement_type(), detects_statement_kinds(), empty_sheet_is_rejected(), extract_metadata(), extract_period(), extracts_metadata(), fixture() (+4 more)
+
+### Community 22 - "tns-core/src/lib.rs"
+Cohesion: 0.17
+Nodes (17): classifies_zones(), classify_zone(), detects_total_rows(), is_word_char(), normalize_header(), normalizes_russian_headers(), numeric_value(), numeric_value_matches_legacy_contract() (+9 more)
 
 ### Community 23 - "tns-core"
-Cohesion: 0.67
-Nodes (4): tns-core, tns-db, tns-excel, tns-studio
+Cohesion: 0.50
+Nodes (5): tns-core, tns-db, tns-excel, tns-parity, tns-studio
+
+### Community 36 - "HANDOFF PROMPT — TNS Energy Studio: миграция на Rust + React + Tauri"
+Cohesion: 0.11
+Nodes (17): 10. Graphify (карта кода), 11. Первый шаг нового чата, 1. Роль, 2. Что за проект, 3. Зафиксированные решения (не менять без пользователя), 5. Карта репозитория, 6. Что делать дальше (порядок), 7. Жёсткие ограничения (+9 more)
+
+### Community 37 - "TNS Energy Studio — миграция на Rust + React + Tauri"
+Cohesion: 0.18
+Nodes (10): Handoff и карта кода, Parity-харнесс (legacy — оракул), React UI (Vite), Tauri shell, TNS Energy Studio — миграция на Rust + React + Tauri, Зафиксированные решения, Как запустить legacy-эталон, Полная верификация (+2 more)
+
+### Community 38 - "TnsError"
+Cohesion: 0.29
+Nodes (5): TnsError, InvalidNumber, Message, NonFinite, check_cancel()
+
+### Community 39 - "StatementKind"
+Cohesion: 0.40
+Nodes (4): StatementKind, Dom, Gorod, Unknown
 
 ## Knowledge Gaps
-- **12 isolated node(s):** `Dom`, `Gorod`, `Unknown`, `Day`, `Night` (+7 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 256 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **19 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **13 isolated node(s):** `Dom`, `Gorod`, `Unknown`, `Day`, `Night` (+8 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 281 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **18 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `DatabaseManager` connect `DatabaseManager` to `sync_manager.py`, `core_engine.py`, `TNSEnergyStudioWindow`, `S3Config`, `CloudSyncDialog`, `DiagnosticService`, `ui_sync_components.py`, `DownloadUpdateWorker`?**
-  _High betweenness centrality (0.061) - this node is a cross-community bridge._
+- **Why does `process_statement()` connect `process_statement` to `HANDOFF PROMPT — TNS Energy Studio: миграция на Rust + React + Tauri`, `TNS Energy Studio — миграция на Rust + React + Tauri`, `xlsx_signature`, `TNS Energy Studio — полный план миграции на Rust + React + Tauri`, `ui_sync_components.py`?**
+  _High betweenness centrality (0.097) - this node is a cross-community bridge._
 - **Are the 9 inferred relationships involving `TNSEnergyStudioWindow` (e.g. with `1. Модули` and `2. Текущее состояние (эталон)`) actually correct?**
   _`TNSEnergyStudioWindow` has 9 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `Dom`, `Gorod`, `Unknown` to the rest of the system?**
-  _12 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _13 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `sync_manager.py` be split into smaller, more focused modules?**
-  _Cohesion score 0.059794214715589204 - nodes in this community are weakly interconnected._
-- **Why does `TNSEnergyStudioWindow` connect `TNSEnergyStudioWindow` to `core_engine.py`, `DatabaseManager`, `S3Config`, `CloudSyncDialog`, `UpdateModalDialog`, `ui_sync_components.py`, `CheckUpdatesWorker`?**
-  _High betweenness centrality (0.060) - this node is a cross-community bridge._
+  _Cohesion score 0.05232106815711846 - nodes in this community are weakly interconnected._
+- **Why does `DatabaseManager` connect `DatabaseManager` to `sync_manager.py`, `process_statement`, `TNSEnergyStudioWindow`, `S3Config`, `CloudSyncDialog`, `DiagnosticService`, `ui_sync_components.py`, `DownloadUpdateWorker`?**
+  _High betweenness centrality (0.054) - this node is a cross-community bridge._
 - **Are the 8 inferred relationships involving `CloudSyncDialog` (e.g. with `TNSEnergyStudioWindow` and `CheckUpdatesWorker`) actually correct?**
   _`CloudSyncDialog` has 8 INFERRED edges - model-reasoned connections that need verification._
 - **Should `process.rs` be split into smaller, more focused modules?**
-  _Cohesion score 0.050200803212851405 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.13763440860215054 - nodes in this community are weakly interconnected._
