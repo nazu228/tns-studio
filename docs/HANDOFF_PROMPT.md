@@ -57,18 +57,19 @@ TNS Energy Studio — Windows-приложение для обработки в�
 
 | Компонент | Состояние | Тесты |
 |---|---|---|
-| `tests/parity` | 3 фикстуры (dom/gorod/march), golden JSON+xlsx, 5 скриншотов legacy | **7 passed** |
+| `tests/parity` | 3 фикстуры (dom/gorod/march), golden JSON+xlsx, 5 скриншотов legacy, независимый `xlsx_signature` | **19 passed, 3 xfailed** |
 | `crates/tns-excel` | Обёртка `umya-spreadsheet` 3.1.1: чтение/запись существующей книги, `safe_save` | **3 passed** |
-| `crates/tns-core` | `normalize_header`, `row_type`, `safe_float`, `numeric_value`, `classify_zone`, `total_row`, `resolve_layout`, `extract_metadata`, `detect_statement_type`, `process_statement` (парсинг/итоги/result/прогресс/отмена) | **14 passed** |
+| `crates/tns-core` | `normalize_header`, `row_type`, `safe_float`, `numeric_value`, `classify_zone`, `total_row`, `resolve_layout`, `extract_metadata`, `detect_statement_type`, `process_statement` (парсинг/итоги/result/прогресс/отмена) | **15 passed** |
+| `crates/tns-core` output writer | срез 1: «Ведомость ЭП» + «Сводка по домам», формулы/merge/freeze C6/ширины/`safe_save` | layout-golden на 3 фикстурах |
 | `crates/tns-db` | Схема legacy, seed, история, upsert домов, локальный бэкап, валидация | **4 passed** |
 | `src-tauri` | Tauri 2 shell, окно 1280×880, 8 команд; `detect_statement`/`process_statement` пока заглушки | `cargo check` ok |
 | `apps/ui` | React/Vite главное окно TNS, design parity; данные пока моковые | `typecheck` + `build` ok |
 
-Итого **28 зелёных тестов**. `process_statement` уже совпадает с golden по `result` на dom/gorod: consumer/contract/period, houses_count, totals, balance, preview_rows, columns_used, события прогресса и отмена.
+Итого **22 Rust-теста** и **19 pytest passed, 3 xfailed**. `process_statement` уже совпадает с golden по `result` на dom/gorod: consumer/contract/period, houses_count, totals, balance, preview_rows, columns_used, события прогресса и отмена; срез 1 writer'а совпадает по layout-xlsx на всех 3 фикстурах, полный xlsx-сигнал ждёт стилей.
 
 ### Чего ещё нет
 
-- **Выходная книга**: формулы SUM/ROUND/IF, стили Segoe UI, заливки, границы, merge, freeze C6, ширины, CF `H6:Hn`, hyperlink, `safe_save` из `process_statement`.
+- **Выходная книга, срез 2**: стили Segoe UI, заливки, границы, number formats, CF `H6:Hn`, hyperlink, полная xlsx-сигнатура.
 - **Tauri**: реальные `detect_statement`/`process_statement`, прогресс/отмена, запись в SQLite.
 - **UI**: `invoke`/`listen` вместо мока, прогресс/ошибки/отмена/история.
 - **Updater/CI**: `.github/workflows/release.yml`, `latest.json`, minisign/Authenticode.
@@ -107,7 +108,8 @@ tns-studio/
 
 ## 6. Что делать дальше (порядок)
 
-### Срез 1 — output workbook core
+### Срез 1 — output workbook core (готов)
+**Статус: закрыт**; layout-паритет на 3 фикстурах, 15 Rust-тестов. Ниже — исходная постановка для истории.
 В `crates/tns-core/src/process.rs` + новый `src/output.rs`:
 - сделать книгу изменяемой, переименовать исходный лист в «Ведомость ЭП»;
 - создать лист «Сводка по домам» первым;
@@ -168,23 +170,30 @@ tns-studio/
 
 ## 8. Верификация
 
-Каноническая команда:
+Каноническая команда (обычная проверка):
 
 ```powershell
 .\scripts\verify.ps1
 ```
 
-Она ставит `apps/ui/node_modules` при необходимости и гоняет:
+Release gate для полного xlsx-паритета (после среза 2):
+
+```powershell
+.\scripts\verify.ps1 -RequireRustOutput
+```
+
+Скрипт ставит `apps/ui/node_modules` при необходимости и гоняет:
 
 ```powershell
 cargo test --manifest-path crates/tns-core/Cargo.toml
 cargo test --manifest-path crates/tns-db/Cargo.toml
 cargo test --manifest-path crates/tns-excel/Cargo.toml
 cargo check --manifest-path src-tauri/Cargo.toml
+cargo build --manifest-path crates/tns-parity/Cargo.toml
 python -m pytest tests/parity -q
 npm --prefix apps/ui run typecheck
 npm --prefix apps/ui run build
-git diff --exit-code origin/parity-harness -- legacy/pyqt tests/parity
+git diff --exit-code origin/parity-harness -- legacy/pyqt tests/parity/fixtures
 ```
 
 Если `cargo` не находит `link.exe` — используй `.\scripts\cargo.ps1` или окружение MSVC Build Tools (`vcvars64.bat`). UI `dist` не коммитить.
@@ -203,6 +212,9 @@ git diff --exit-code origin/parity-harness -- legacy/pyqt tests/parity
 8. **Squad**: агенты уже трижды падали на больших срезах (лимит шагов, пустой отчёт без коммита). Давай маленькие задачи, требуй коммит после каждого файла/теста; отчёт без коммита = failed.
 9. **`apps/ui/data.ts`** — мок; после invoke удалить, иначе риск расхождения с golden.
 10. **`src-tauri/gen/schemas/*`** может перегенерироваться `cargo check` с LF; не коммить случайные EOL-изменения.
+11. **Layout-гейт**: `xlsx_signature(include_styles=False)` — enforced для среза 1; полный сигнал включается только `scripts/verify.ps1 -RequireRustOutput`, пока стили не готовы. Не ослаблять layout-тест.
+12. **umya ширины**: соседние `<col>` с одинаковой шириной coalesce; writer сдвигает вторую на `1e-7`, openpyxl `round(6)` это скрывает. Не убирать хак без замены.
+13. **Multi-sheet**: writer/parser используют `book.sheet(0)`, legacy — `wb.active`; порядок сводки для extra-листов исправлен, active-sheet вход пока не поддержан.
 
 ---
 
@@ -231,9 +243,9 @@ graphify update .          # после изменений кода, без LLM
 ## 11. Первый шаг нового чата
 
 1. Прочитай `docs/HANDOFF_PROMPT.md`, `docs/status.md`, `graphify-out/GRAPH_REPORT.md`.
-2. Запусти `.\scripts\verify.ps1` — убедись, что база зелёная (28 тестов).
-3. Возьми **срез 1 (output workbook core)**. Не пытайся закрыть всё сразу.
-4. После каждого файла/теста — коммит. После среза — `cargo test` + `pytest` + `graphify update .`.
+2. Запусти `.\scripts\verify.ps1` — убедись, что база зелёная: 22 Rust-теста, 19 pytest passed / 3 xfailed.
+3. Возьми **срез 2 (output styles: стили, number formats, CF, hyperlink)**. Не пытайся закрыть всё сразу.
+4. После каждого файла/теста — коммит. После среза — `cargo test` + `pytest` + `graphify update .`; финальный gate — `.\scripts\verify.ps1 -RequireRustOutput`.
 5. Если поведение legacy неоднозначно — читай `legacy/pyqt/core_engine.py` и `tests/parity/parity_lib.py`, не выдумывай.
 
 **Цель**: TNS Energy Studio, полностью работающая на Rust + React + Tauri, с golden-паритетом, локальными данными и GitHub-обновлениями.
