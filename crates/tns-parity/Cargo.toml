@@ -1,0 +1,13 @@
+[package]
+name = "tns-parity"
+version = "0.1.0"
+edition = "2021"
+description = "Parity harness driver: runs the Rust TNS engine and emits its result"
+
+[[bin]]
+name = "tns-parity"
+path = "src/main.rs"
+
+[dependencies]
+serde_json = "1"
+tns-core = { path = "../tns-core" }

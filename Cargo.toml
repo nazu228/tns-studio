@@ -1,3 +1,9 @@
 [workspace]
 resolver = "2"
-members = ["crates/tns-core", "crates/tns-db", "crates/tns-excel", "src-tauri"]
+members = [
+    "crates/tns-core",
+    "crates/tns-db",
+    "crates/tns-excel",
+    "crates/tns-parity",
+    "src-tauri",
+]

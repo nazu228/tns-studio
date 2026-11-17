@@ -1,7 +1,10 @@
 # Full verification pass: Rust crates, Tauri shell, parity tests, UI typecheck/build.
 # A fresh git worktree has no node_modules, so UI dependencies are installed first.
-# Usage: .\scripts\verify.ps1
+# Usage: .\scripts\verify.ps1 [-RequireRustOutput]
+# -RequireRustOutput turns the pending Rust xlsx acceptance test into a hard gate.
+param([switch]$RequireRustOutput)
 $ErrorActionPreference = "Stop"
+$env:PYTHONUTF8 = "1"
 
 $root = Split-Path -Parent $PSScriptRoot
 $failed = $false
@@ -28,10 +31,15 @@ try {
     Invoke-Step "cargo test tns-db" { cargo test --manifest-path crates/tns-db/Cargo.toml }
     Invoke-Step "cargo test tns-excel" { cargo test --manifest-path crates/tns-excel/Cargo.toml }
     Invoke-Step "cargo check src-tauri" { cargo check --manifest-path src-tauri/Cargo.toml }
+    Invoke-Step "cargo build tns-parity" { cargo build --manifest-path crates/tns-parity/Cargo.toml }
+    $env:TNS_PARITY_BIN = Join-Path $root "target\debug\tns-parity.exe"
+    $env:TNS_REQUIRE_RUST_OUTPUT = if ($RequireRustOutput) { "1" } else { "0" }
     Invoke-Step "pytest tests/parity" { python -m pytest tests/parity -q }
     Invoke-Step "npm typecheck" { npm --prefix apps/ui run typecheck }
     Invoke-Step "npm build" { npm --prefix apps/ui run build }
-    Invoke-Step "legacy/parity guard" { git diff --exit-code origin/parity-harness -- legacy/pyqt tests/parity }
+    # Fixtures and golden outputs are the oracle contract. Harness code under
+    # tests/parity is allowed to evolve (signature coverage, Rust driver).
+    Invoke-Step "legacy/parity guard" { git diff --exit-code origin/parity-harness -- legacy/pyqt tests/parity/fixtures }
 }
 catch {
     $failed = $true

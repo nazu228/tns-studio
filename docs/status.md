@@ -13,7 +13,11 @@
   - 3 фикстуры: `dom_april_2026.xlsx`, `gorod_april_2026.xlsx`, `dom_march_2026.xlsx`;
   - golden-выходы legacy (xlsx + JSON) и манифест;
   - 5 скриншотов legacy: пустое окно, справка, результаты dom/gorod, ошибка;
-  - pytest-харнесс: **7 passed**.
+  - независимая `xlsx_signature`: порядок листов, стили, CF с dxf, hyperlinks,
+    hidden rows/cols, defined names, validations;
+  - `crates/tns-parity` — драйвер Rust-результата для pytest;
+  - pytest-харнесс: **14 passed, 3 xfailed** (Rust xlsx — acceptance-тест
+    выходной книги, ждёт реализации writer).
 
 ### Phase 1 — скелет
 - [x] `apps/ui` — Vite + React + TS, главное окно TNS (design parity):
@@ -45,7 +49,7 @@
 
 | Проверка | Результат |
 |---|---|
-| `python -m pytest tests/parity -q` | 7 passed |
+| `python -m pytest tests/parity -q` | 14 passed, 3 xfailed |
 | `cd apps/ui && npm run typecheck` | ok |
 | `cd apps/ui && npm run build` | ok (dist) |
 | `cargo check --manifest-path crates/tns-core/Cargo.toml` | ok |
@@ -53,7 +57,8 @@
 | `cargo test --manifest-path crates/tns-db/Cargo.toml` | 4 passed |
 | `cargo check --manifest-path src-tauri/Cargo.toml` | ok (Tauri 2.12) |
 | `cargo test --manifest-path crates/tns-excel/Cargo.toml` | 3 passed |
-| `git diff origin/rust-migration -- legacy/pyqt` | пусто |
+| `cargo build --manifest-path crates/tns-parity/Cargo.toml` | ok |
+| `git diff origin/parity-harness -- legacy/pyqt tests/parity/fixtures` | пусто |
 
 ## В работе
 

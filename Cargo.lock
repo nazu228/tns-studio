@@ -3888,6 +3888,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "tns-parity"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "tns-core",
+]
+
+[[package]]
 name = "tns-studio"
 version = "0.1.0"
 dependencies = [
