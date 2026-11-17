@@ -7,6 +7,7 @@
 use std::fmt;
 
 pub mod layout;
+pub mod output;
 pub mod process;
 pub use layout::*;
 pub use process::*;
@@ -85,6 +86,17 @@ pub fn row_type(value: &str) -> Option<u8> {
     } else {
         None
     }
+}
+
+/// Excel column letter for a 1-based column number (1 -> A, 28 -> AB).
+pub(crate) fn column_letter(mut column: usize) -> String {
+    let mut result = String::new();
+    while column > 0 {
+        let remainder = (column - 1) % 26;
+        result.insert(0, (b'A' + remainder as u8) as char);
+        column = (column - 1) / 26;
+    }
+    result
 }
 
 /// Port of legacy core_engine.safe_float: never panics, returns default on junk.

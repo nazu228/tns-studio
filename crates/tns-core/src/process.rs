@@ -5,9 +5,10 @@
 //! rows, period/paths and progress events. The golden result JSON is used as
 //! the oracle.
 
+use crate::output;
 use crate::{
-    classify_zone, detect_statement_type, extract_metadata, numeric_value, resolve_layout,
-    row_type, total_row, LayoutColumns, StatementKind, TnsError, Zone,
+    classify_zone, column_letter, detect_statement_type, extract_metadata, numeric_value,
+    resolve_layout, row_type, total_row, LayoutColumns, StatementKind, TnsError, Zone,
 };
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -75,16 +76,17 @@ impl<'a> Default for ProcessOptions<'a> {
 }
 
 #[derive(Debug)]
-struct House {
-    header_row: usize,
-    name: String,
-    day_rows: Vec<usize>,
-    night_rows: Vec<usize>,
-    odn_rows: Vec<usize>,
+pub(crate) struct House {
+    pub(crate) header_row: usize,
+    pub(crate) name: String,
+    pub(crate) day_rows: Vec<usize>,
+    pub(crate) night_rows: Vec<usize>,
+    pub(crate) odn_rows: Vec<usize>,
+    pub(crate) sub_rows: Vec<usize>,
 }
 
 impl House {
-    fn all_meter_rows(&self) -> Vec<usize> {
+    pub(crate) fn all_meter_rows(&self) -> Vec<usize> {
         let mut rows = Vec::with_capacity(self.day_rows.len() + self.night_rows.len() + self.odn_rows.len());
         rows.extend(&self.day_rows);
         rows.extend(&self.night_rows);
@@ -96,16 +98,6 @@ impl House {
 fn cell(sheet: &Worksheet, row: usize, column: usize) -> String {
     // umya tuple coordinates are (column, row), unlike A1 strings.
     sheet.value((column as u32, row as u32))
-}
-
-fn column_letter(mut column: usize) -> String {
-    let mut result = String::new();
-    while column > 0 {
-        let remainder = (column - 1) % 26;
-        result.insert(0, (b'A' + remainder as u8) as char);
-        column = (column - 1) / 26;
-    }
-    result
 }
 
 fn round3(value: f64) -> f64 {
@@ -126,7 +118,7 @@ fn check_cancel(cancel: Option<&dyn Fn() -> bool>) -> Result<(), TnsError> {
     }
 }
 
-fn billed_value(sheet: &Worksheet, row: usize, column: usize) -> Result<f64, TnsError> {
+pub(crate) fn billed_value(sheet: &Worksheet, row: usize, column: usize) -> Result<f64, TnsError> {
     let coordinate = format!("{}{}", column_letter(column), row);
     let Some(cell) = sheet.cell((column as u32, row as u32)) else {
         return Ok(0.0);
@@ -172,7 +164,7 @@ pub fn process_statement(
     emit(options.progress, 5, &format!("Чтение файла: {}...", source_name));
     check_cancel(options.cancel)?;
 
-    let book = read(source).map_err(|error| TnsError::Message(error.to_string()))?;
+    let mut book = read(source).map_err(|error| TnsError::Message(error.to_string()))?;
     let sheet = book
         .sheet(0)
         .map_err(|error| TnsError::Message(format!("Не удалось открыть лист: {}", error)))?;
@@ -244,6 +236,7 @@ pub fn process_statement(
                     day_rows: Vec::new(),
                     night_rows: Vec::new(),
                     odn_rows: Vec::new(),
+                    sub_rows: Vec::new(),
                 });
                 current = Some(houses.len() - 1);
             }
@@ -256,7 +249,11 @@ pub fn process_statement(
                     }
                 }
             }
-            Some(102) => {}
+            Some(102) => {
+                if let Some(index) = current {
+                    houses[index].sub_rows.push(row);
+                }
+            }
             _ => {}
         }
     }
@@ -332,16 +329,32 @@ pub fn process_statement(
             houses.len()
         ),
     );
+    let layout = output::write_statement(&mut book, &columns, &houses, statement_total_row)?;
+
     emit(
         options.progress,
         65,
         "Построение листа «Сводка по домам» (Дашборд)...",
     );
+    output::write_summary(
+        &mut book,
+        &columns,
+        &layout,
+        &houses,
+        statement_total_row,
+        &consumer,
+        &contract,
+        &period,
+    )?;
+
     emit(
         options.progress,
         90,
         &format!("Сохранение файла в папку {}...", subfolder_name),
     );
+    let (saved_path, warning) = tns_excel::safe_save(&book, &target_path)
+        .map_err(|error| TnsError::Message(error.to_string()))?;
+
     emit(
         options.progress,
         100,
@@ -355,8 +368,8 @@ pub fn process_statement(
         period,
         subfolder_name,
         target_dir: target_dir.to_string_lossy().to_string(),
-        target_path: target_path.to_string_lossy().to_string(),
-        warning: None,
+        target_path: saved_path.to_string_lossy().to_string(),
+        warning,
         houses_count: houses.len(),
         total_day,
         total_night,
