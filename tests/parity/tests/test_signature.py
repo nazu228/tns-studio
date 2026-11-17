@@ -137,3 +137,97 @@ def test_signature_captures_links_hidden_dimensions_and_names(tmp_path):
 
     names = {item["name"]: item for item in signature["defined_names"]}
     assert names["MyName"]["attr_text"] == "'Second'!$A$1"
+
+
+def _make_layout_workbook(
+    path,
+    *,
+    styled=False,
+    value=0,
+    formula="=SUM(B2:B3)",
+    merged="A1:B1",
+    freeze="A3",
+    column_width=12.5,
+):
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Data"
+
+    sheet["A1"] = "Header"
+    sheet["B2"] = value
+    sheet["B3"] = 2
+    sheet["C2"] = ""
+    sheet["D2"] = False
+    sheet["E2"] = formula
+    sheet["F2"] = "site"
+    if merged:
+        sheet.merge_cells(merged)
+    if freeze:
+        sheet.freeze_panes = freeze
+    sheet.column_dimensions["B"].width = column_width
+    sheet.row_dimensions[3].height = 22.0
+
+    validation = DataValidation(
+        type="whole", operator="greaterThan", formula1="0", allow_blank=True
+    )
+    sheet.add_data_validation(validation)
+    validation.add("B2:B3")
+    workbook.defined_names["Total"] = DefinedName("Total", attr_text="'Data'!$B$3")
+
+    if styled:
+        sheet["A1"].font = Font(name="Segoe UI", size=15, bold=True, color="1F4E79")
+        sheet["B2"].fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
+        sheet["B2"].number_format = "#,##0.000"
+        sheet["B3"].border = Border(left=Side(style="thin", color="D3D3D3"))
+        sheet["C2"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        sheet["D2"].font = Font(italic=True, color="C00000")
+        sheet["F2"].hyperlink = "https://example.com"
+        sheet.conditional_formatting.add(
+            "B2:B3",
+            CellIsRule(
+                operator="greaterThan",
+                formula=["0"],
+                stopIfTrue=True,
+                fill=PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid"),
+                font=Font(color="1E7E34", bold=True),
+            ),
+        )
+
+    workbook.save(path)
+
+
+def test_layout_signature_ignores_visual_differences(tmp_path):
+    plain = tmp_path / "plain.xlsx"
+    styled = tmp_path / "styled.xlsx"
+    _make_layout_workbook(plain)
+    _make_layout_workbook(styled, styled=True)
+
+    plain_layout = xlsx_signature(plain, include_styles=False)
+    styled_layout = xlsx_signature(styled, include_styles=False)
+    assert plain_layout == styled_layout
+    assert "conditional_formatting" not in styled_layout["sheets"]["Data"]
+    assert plain_layout["sheets"]["Data"]["cells"]["B2"] == {"v": 0, "is_formula": False}
+
+    styled_full = xlsx_signature(styled)
+    assert styled_full != xlsx_signature(plain)
+    assert styled_full["sheets"]["Data"]["cells"]["F2"]["hyperlink"]["target"] == "https://example.com"
+
+
+def test_layout_signature_detects_value_formula_merge_freeze_and_width(tmp_path):
+    base = tmp_path / "base.xlsx"
+    _make_layout_workbook(base)
+    base_layout = xlsx_signature(base, include_styles=False)
+
+    cases = {
+        "value": {"value": 1},
+        "formula": {"formula": "=ROUND(SUM(B2:B3),2)"},
+        "merged": {"merged": "A1:C1"},
+        "freeze_panes": {"freeze": "B2"},
+        "column_width": {"column_width": 24.0},
+    }
+    for name, change in cases.items():
+        path = tmp_path / f"{name}.xlsx"
+        _make_layout_workbook(path, **change)
+        assert xlsx_signature(path, include_styles=False) != base_layout, (
+            f"layout signature ignored the {name} change"
+        )

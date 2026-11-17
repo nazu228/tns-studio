@@ -247,13 +247,19 @@ def _data_validation_signature(validation):
     }
 
 
-def xlsx_signature(path: Path) -> dict:
+def xlsx_signature(path: Path, include_styles: bool = True) -> dict:
     """Content signature of an xlsx: sheet order, styles, merges, CF, links.
 
     Raw xlsx bytes are not deterministic (zip timestamps), so parity compares
     semantic workbook content instead of file hashes. The signature is used by
     both the legacy-oracle tests and the Rust-output tests, so it must stay
     independent from both implementations.
+
+    ``include_styles=False`` keeps only the layout contract: raw cell values
+    and formula flags, sheet order, merges, freeze panes, filters, print areas,
+    column/row dimensions (including hidden flags), validations and defined
+    names. Styles, number formats, conditional formatting and hyperlinks are
+    left out, so the output-writer slice can be checked before styling lands.
     """
     from openpyxl import load_workbook
 
@@ -288,41 +294,51 @@ def xlsx_signature(path: Path) -> dict:
                     for row, dim in ws.row_dimensions.items()
                     if dim.height is not None or dim.hidden or dim.customHeight
                 },
-                "conditional_formatting": [
+            }
+            if include_styles:
+                info["conditional_formatting"] = [
                     {
                         "range": str(rng.sqref),
                         "rules": [_conditional_rule_signature(rule) for rule in rng.rules],
                     }
                     for rng in ws.conditional_formatting
-                ],
-                "data_validations": [
-                    _data_validation_signature(validation)
-                    for validation in ws.data_validations.dataValidation
-                ],
-                "cells": {},
-            }
+                ]
+            else:
+                # The sheet title is already the sheets key and part of sheet_order.
+                del info["title"]
+            info["data_validations"] = [
+                _data_validation_signature(validation)
+                for validation in ws.data_validations.dataValidation
+            ]
+            info["cells"] = {}
             for row in ws.iter_rows():
                 for cell in row:
-                    if (
-                        cell.value is None
-                        and cell.hyperlink is None
-                        and not getattr(cell, "has_style", False)
-                    ):
-                        continue
-                    protection = _protection_signature(cell.protection)
-                    if protection == {"locked": True, "hidden": False}:
-                        protection = None
-                    info["cells"][cell.coordinate] = {
-                        "v": cell.value,
-                        "t": cell.data_type,
-                        "fmt": cell.number_format,
-                        "font": _font_signature(cell.font),
-                        "fill": _fill_signature(cell.fill),
-                        "align": _alignment_signature(cell.alignment),
-                        "border": _border_signature(cell.border),
-                        "protection": protection,
-                        "hyperlink": _hyperlink_signature(cell.hyperlink),
-                    }
+                    if include_styles:
+                        if (
+                            cell.value is None
+                            and cell.hyperlink is None
+                            and not getattr(cell, "has_style", False)
+                        ):
+                            continue
+                        protection = _protection_signature(cell.protection)
+                        if protection == {"locked": True, "hidden": False}:
+                            protection = None
+                        info["cells"][cell.coordinate] = {
+                            "v": cell.value,
+                            "t": cell.data_type,
+                            "fmt": cell.number_format,
+                            "font": _font_signature(cell.font),
+                            "fill": _fill_signature(cell.fill),
+                            "align": _alignment_signature(cell.alignment),
+                            "border": _border_signature(cell.border),
+                            "protection": protection,
+                            "hyperlink": _hyperlink_signature(cell.hyperlink),
+                        }
+                    elif cell.value is not None or cell.data_type == "f":
+                        info["cells"][cell.coordinate] = {
+                            "v": cell.value,
+                            "is_formula": cell.data_type == "f",
+                        }
             sheets[ws.title] = info
 
         defined_names = []
