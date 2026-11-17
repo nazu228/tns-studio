@@ -492,7 +492,8 @@ pub(crate) fn write_summary(
         ],
     );
 
-    // Summary is created at the end; legacy inserts it at index 0.
-    book.sheet_collection_mut().swap(0, 1);
+    // Summary is created at the end; legacy inserts it at index 0. Rotate
+    // instead of swap so extra source sheets keep their relative order.
+    book.sheet_collection_mut().rotate_right(1);
     Ok(())
 }

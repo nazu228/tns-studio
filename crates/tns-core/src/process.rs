@@ -1,9 +1,9 @@
-//! Port of legacy core_engine.process_statement (result/parse stage).
+//! Port of legacy core_engine.process_statement.
 //!
-//! The output workbook (formulas/styles/CF/hyperlinks) is the next slice; this
-//! module already reproduces the legacy parsing, validation, totals, preview
-//! rows, period/paths and progress events. The golden result JSON is used as
-//! the oracle.
+//! Reproduces the legacy parsing, validation, totals, preview rows,
+//! period/paths, progress events and output workbook layout (values, formulas,
+//! merges, freeze panes, dimensions). Styles/CF/hyperlinks are slice 2. The
+//! golden result JSON and the openpyxl xlsx signature are the oracles.
 
 use crate::output;
 use crate::{
@@ -152,7 +152,7 @@ fn sum_rows(sheet: &Worksheet, rows: &[usize], column: usize) -> Result<f64, Tns
     Ok(total)
 }
 
-/// Parse, validate and compute the result without writing the output workbook.
+/// Parse, validate, compute the result and write the output workbook layout.
 pub fn process_statement(
     source: &Path,
     options: ProcessOptions<'_>,
