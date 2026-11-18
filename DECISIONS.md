@@ -71,3 +71,25 @@
 **Consequence:** every `tns-excel::write` rewrites the zip styles.xml; tests cover empty/non-empty diagonals and the inline-string marker. The behavior is tied to umya 3.1.1 and should be revisited when the writer stops emitting the empty diagonal or supports inline strings.
 
 **Tried and rejected:** changing `xlsx_signature` to ignore diagonals/inlineStr (weakens the oracle); accepting an xfail after slice 2; manipulating `origin/parity-harness` to make the guard pass (not a verification method).
+
+## 2026-11-18 — Tauri IPC contract for statement commands
+
+**Context:** `detect_statement` must handle both a selected file and a folder, while the UI has modes both/dom/gorod. `process_statement` runs the synchronous Rust core and needs progress and cancellation across the Tauri boundary.
+
+**Decision:** `detect_statement(path)` returns `{path,is_dir,kind,consumer,contract,files[]}`. For a folder, `files` contains every `.xlsx` candidate (sorted, `~$` skipped) and `kind` is `dom`/`gorod` only when every readable candidate agrees; otherwise `unknown`. `process_statement` runs `tns_core::process_statement` in `spawn_blocking`, emits `process-progress` with `{percent,message}`, and uses `cancel_statement` plus an `Arc<AtomicBool>`. `running` is protected by `compare_exchange` and an RAII guard. Command arguments are exposed to JS in Tauri's default camelCase.
+
+**Why:** the file/folder asymmetry is real input behavior; a single aggregate `kind` would hide ambiguous folders. Progress/cancel must not block the UI thread.
+
+**Consequence:** UI slice 4 must handle `files[]`/`unknown` and use the camelCase argument names. The process command returns the core result plus `history_warning` only when SQLite recording fails; the workbook remains saved.
+
+**Tried and rejected:** treating a folder as one statement (wrong for mixed folders); running the core on the Tauri async thread (blocks UI); failing the command after a successful save when only history failed.
+
+## 2026-11-18 — Tauri worktree needs a short target dir and UI dist
+
+**Context:** the squad worktree path plus MSVC object names exceeded the 259-character `link.exe` limit (`LNK1104`), and a fresh worktree has no gitignored `apps/ui/dist`, which `tauri::generate_context!` needs for `frontendDist`.
+
+**Decision:** for local Tauri builds use a short `CARGO_TARGET_DIR` (the squad worktree used a local untracked `.cargo/config.toml`), and copy/build `apps/ui/dist` before `cargo check/test` in a fresh worktree. Neither the target dir nor `dist` is committed; `scripts/verify.ps1` builds the UI and remains the canonical entry.
+
+**Why:** both failures look like code errors but are environment artifacts; fixing the environment keeps the gate honest.
+
+**Consequence:** `cargo test --manifest-path src-tauri/Cargo.toml` alone in a fresh clone/worktree can fail on missing `dist`; use the verify script or copy `dist` first. Do not add a permanent absolute target path to the repo.

@@ -1,6 +1,6 @@
 # Статус миграции TNS Energy Studio
 
-Обновлено: 2026-11-17. Ветка: `parity-harness` (срез 2 output workbook).
+Обновлено: 2026-11-18. Ветка: `parity-harness` (срез 3 Tauri commands).
 
 ## Сделано
 
@@ -31,9 +31,11 @@
 - [x] `crates/tns-db` — локальная SQLite: схема legacy, seed организаций/тарифов,
   история расчётов, upsert домов, локальный бэкап, валидация. **4 passed**.
 - [x] `src-tauri` — Tauri 2 shell: окно 1280×880, иконка, `frontendDist` на
-  `apps/ui/dist`, команды `history_list`, `backup_db`, `open_file`, `open_folder`,
-  `config_get`, `detect_statement`, `process_statement`, `update_check`.
-  `cargo check` проходит (Tauri 2.12).
+  `apps/ui/dist`, 9 команд. `detect_statement` читает файл/папку и отдаёт
+  кандидатов; `process_statement` идёт через `spawn_blocking`, progress
+  `process-progress`, `cancel_statement`, запись истории/домов в SQLite;
+  `cargo test` — **7 passed**, `cargo check` ok (Tauri 2.12).
+- [x] Tauri dialog plugin + capabilities (`core:default`, `dialog:default`) для UI среза 4.
 - [x] `crates/tns-excel` — обёртка над `umya-spreadsheet` 3.1.1 (MIT):
   чтение/запись существующей книги, `safe_save` с атомарной заменой и
   fallback-копией; узкие post-processors для пустого `<diagonal/>` и пустой
@@ -50,8 +52,8 @@
 - [x] Выходная книга, срез 2: стили Segoe UI, заливки, границы, number formats,
   CF `H6:Hn`, hyperlink B6/B7; полный `xlsx_signature` — **0 diffs** на всех 3
   фикстурах, pytest **22 passed / 0 xfailed**.
-- [ ] Tauri `detect_statement`/`process_statement`, UI invoke, updater/CI.
-- [ ] Интеграция React UI с Tauri invoke, updater, CI.
+- [ ] UI invoke/listen вместо мока: detect/process/history/backup/open, прогресс/отмена.
+- [ ] Updater/CI и e2e.
 
 ## Проверки
 
@@ -64,14 +66,15 @@
 | `cargo check --manifest-path crates/tns-core/Cargo.toml` | ok |
 | `cargo test --manifest-path crates/tns-core/Cargo.toml` | 16 passed |
 | `cargo test --manifest-path crates/tns-db/Cargo.toml` | 4 passed |
-| `cargo check --manifest-path src-tauri/Cargo.toml` | ok (Tauri 2.12) |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | ok (Tauri 2.12, dialog) |
+| `cargo test --manifest-path src-tauri/Cargo.toml` | 7 passed |
 | `cargo test --manifest-path crates/tns-excel/Cargo.toml` | 5 passed |
 | `cargo build --manifest-path crates/tns-parity/Cargo.toml` | ok |
 | `git diff parity-harness -- legacy/pyqt tests/parity/fixtures` | пусто |
 
 ## В работе
 
-- Tauri commands: реальные `detect_statement`/`process_statement`, прогресс/отмена, запись в БД.
+- UI invoke/listen (срез 4): detect/process/history/backup/open, прогресс/отмена; дизайн не менять.
 
 ## Известные девиации
 
@@ -85,11 +88,16 @@
 - `tns-excel` делает узкий post-processing xlsx: удаляет пустой `<diagonal/>`
   только у границ со стилем и ставит `t="inlineStr"` пустой ячейке A итоговой
   строки сводки. Это компенсация ограничений umya, не ослабление oracle.
+- `detect_statement` папки возвращает `files` и агрегирует `kind` только при
+  единогласии типов; mixed/unknown UI разбирает по `files`.
+- `process_statement` при ошибке SQLite возвращает уже сохранённый результат с
+  `history_warning`, не Err.
+- Tauri IPC: аргументы в JS camelCase (`sourcePath`, `outputDir`, `customFilename`);
+  событие прогресса — `process-progress` с `{percent, message}`.
 
 ## Следующие шаги
 
-1. `src-tauri`: реальные `detect_statement`/`process_statement`, прогресс/отмена, запись в БД.
-2. UI invoke/listen вместо мока; прогресс/ошибка/отмена/история; дизайн не менять.
-3. Updater/CI: GitHub Releases + `latest.json` + minisign/Authenticode.
-4. Critic + полный `scripts/verify.ps1 -RequireRustOutput`.
-5. `graphify update .` после изменений кода (срез 2 уже обновлён).
+1. UI invoke/listen вместо мока; прогресс/ошибка/отмена/история; дизайн не менять.
+2. Updater/CI: GitHub Releases + `latest.json` + minisign/Authenticode.
+3. E2E + полный `scripts/verify.ps1 -RequireRustOutput`.
+4. `graphify update .` после UI-среза.

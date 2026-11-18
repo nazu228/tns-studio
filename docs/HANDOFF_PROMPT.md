@@ -62,14 +62,13 @@ TNS Energy Studio — Windows-приложение для обработки в�
 | `crates/tns-core` | `normalize_header`, `row_type`, `safe_float`, `numeric_value`, `classify_zone`, `total_row`, `resolve_layout`, `extract_metadata`, `detect_statement_type`, `process_statement` (парсинг/итоги/result/прогресс/отмена) | **16 passed** |
 | `crates/tns-core` output writer | срез 1+2: «Ведомость ЭП» + «Сводка по домам», формулы/merge/freeze/размеры/стили/CF/hyperlink/`safe_save` | full xlsx-golden 0 diffs на 3 фикстурах |
 | `crates/tns-db` | Схема legacy, seed, история, upsert домов, локальный бэкап, валидация | **4 passed** |
-| `src-tauri` | Tauri 2 shell, окно 1280×880, 8 команд; `detect_statement`/`process_statement` пока заглушки | `cargo check` ok |
+| `src-tauri` | Tauri 2 shell, окно 1280×880, 9 команд; real `detect_statement`/`process_statement` (+cancel), progress, SQLite history/houses, dialog capability | **7 passed**, `cargo check` ok |
 | `apps/ui` | React/Vite главное окно TNS, design parity; данные пока моковые | `typecheck` + `build` ok |
 
-Итого **25 Rust-тестов** и **22 pytest passed, 0 xfailed**. `process_statement` совпадает с golden по `result` на dom/gorod; writer совпадает по полному xlsx-сигналу на всех 3 фикстурах, включая стили/CF/hyperlink.
+Итого **32 Rust-теста** и **22 pytest passed, 0 xfailed**. `process_statement` совпадает с golden по `result` на dom/gorod; writer совпадает по полному xlsx-сигналу на всех 3 фикстурах, включая стили/CF/hyperlink; Tauri-команды detect/process покрыты тестами на фикстурах и пишут историю в SQLite.
 
 ### Чего ещё нет
 
-- **Tauri**: реальные `detect_statement`/`process_statement`, прогресс/отмена, запись в SQLite.
 - **UI**: `invoke`/`listen` вместо мока, прогресс/ошибки/отмена/история.
 - **Updater/CI**: `.github/workflows/release.yml`, `latest.json`, minisign/Authenticode.
 - **TNS/WaterMetrics**: после TNS.
@@ -89,9 +88,10 @@ tns-studio/
       src/process.rs           # process_statement (result/parse; output workbook — TODO)
     tns-excel/src/lib.rs       # umya wrapper: read/write/safe_save
     tns-db/src/lib.rs          # rusqlite: schema/seed/history/backup/validate
-  src-tauri/
-    src/main.rs                # Tauri commands (detect/process — stubs)
+    src-tauri/
+    src/main.rs                # Tauri commands: detect/process/cancel/history/backup/config
     tauri.conf.json            # window/frontendDist/bundle
+    capabilities/default.json  # core:default + dialog:default
   apps/ui/
     src/App.tsx                # главное окно (design parity, mock data)
     src/styles.css             # токены/тема
@@ -127,7 +127,8 @@ tns-studio/
 - квирки legacy: строка 10 может быть перезаписана первым ПУ; C/D/E/G сводки остаются Calibri 11; пустые зоны → 0.0, не формула.
 Расширить golden-тест до полной xlsx-сигнатуры (`tests/parity/parity_lib.py::xlsx_signature`).
 
-### Срез 3 — Tauri commands
+### Срез 3 — Tauri commands (готов)
+**Статус: закрыт**; `cargo test src-tauri` — 7 passed, parity 22/0. Ниже — исходная постановка для истории.
 `src-tauri/src/main.rs`:
 - `detect_statement(path)` — файл/папка, dom/gorod/unknown, consumer/contract;
 - `process_statement(...)` — `tns_core::process_statement` в `spawn_blocking`, прогресс через `emit("process-progress", {percent,message})`, отмена через `AtomicBool` + `cancel_statement`;
@@ -188,6 +189,7 @@ Release gate для полного xlsx-паритета (обязателен �
 cargo test --manifest-path crates/tns-core/Cargo.toml
 cargo test --manifest-path crates/tns-db/Cargo.toml
 cargo test --manifest-path crates/tns-excel/Cargo.toml
+cargo test --manifest-path src-tauri/Cargo.toml
 cargo check --manifest-path src-tauri/Cargo.toml
 cargo build --manifest-path crates/tns-parity/Cargo.toml
 python -m pytest tests/parity -q
@@ -219,6 +221,7 @@ Guard использует локальную базу `parity-harness`, пот�
 13. **Multi-sheet**: writer/parser используют `book.sheet(0)`, legacy — `wb.active`; порядок сводки для extra-листов исправлен, active-sheet вход пока не поддержан.
 14. **umya пустой `<diagonal/>`**: при любом border umya пишет пустой diagonal, openpyxl видит `Side(None,None)` вместо `None`. `tns-excel` удаляет пустой diagonal только у границ со стилем; не удалять у borderless-ячеек.
 15. **Пустая A итоговой строки**: legacy/openpyxl пишет `t="inlineStr"`; umya — numeric. `tns-excel` ставит `t="inlineStr"` только для переданной пустой координаты (A{6+houses.len()}). Не превращать это в общий inline-string writer без тестов.
+16. **Tauri IPC**: JS-аргументы camelCase (`sourcePath`, `outputDir`, `customFilename`); прогресс — событие `process-progress` с `{percent, message}`; `detect_statement` для папки отдаёт `files`, `kind` агрегируется только при единогласии; ошибка SQLite не валит сохранённый расчёт, а добавляет `history_warning`.
 
 ---
 
@@ -248,8 +251,8 @@ graphify update .          # после изменений кода, без LLM
 ## 11. Первый шаг нового чата
 
 1. Прочитай `docs/HANDOFF_PROMPT.md`, `docs/status.md`, `graphify-out/GRAPH_REPORT.md`.
-2. Запусти `.\scripts\verify.ps1` — убедись, что база зелёная: 25 Rust-тестов, 22 pytest passed / 0 xfailed.
-3. Возьми **срез 3 (Tauri commands)**. Не пытайся закрыть всё сразу.
+2. Запусти `.\scripts\verify.ps1` — убедись, что база зелёная: 32 Rust-теста, 22 pytest passed / 0 xfailed.
+3. Возьми **срез 4 (UI invoke)**. Не пытайся закрыть всё сразу.
 4. После каждого файла/теста — коммит. После среза — `cargo test` + `pytest` + `graphify update .`; финальный gate — `.\scripts\verify.ps1 -RequireRustOutput`.
 5. Если поведение legacy неоднозначно — читай `legacy/pyqt/core_engine.py` и `tests/parity/parity_lib.py`, не выдумывай.
 
