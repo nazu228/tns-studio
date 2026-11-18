@@ -139,7 +139,7 @@ tns-studio/
 Тест `detect_statement` на dom/gorod фикстурах.
 
 ### Срез 4 — UI invoke (готов)
-**Статус: закрыт**; `npm ci`, typecheck, build и полный `verify.ps1 -RequireRustOutput` — зелёные. `ipc.ts` — единый мост; App.tsx без моков/setTimeout; прогресс/отмена/история/бэкап/open работают через команды. Runtime-smoke в живом окне остаётся на e2e.
+**Статус: закрыт**; `npm ci`, typecheck, build и полный `verify.ps1 -RequireRustOutput` — зелёные. `ipc.ts` — единый мост; App.tsx без моков/setTimeout; прогресс/отмена/история/бэкап/open работают через команды. Live smoke выполнен 2026-11-18 через WebView2 CDP; native file dialog и ручная отмена остаются на ручную проверку.
 `apps/ui`:
 - `@tauri-apps/api` + `@tauri-apps/plugin-dialog`;
 - убрать `setTimeout`/мок; `invoke`/`listen`;
@@ -157,8 +157,9 @@ tns-studio/
 - `scripts/release-latest-json.ps1`: `windows-x86_64` signature+URL;
 - README: секреты, ключи, подписи, только GitHub Releases.
 
-### Срез 6 — e2e/critic (следующий)
-Прогнать живое Tauri-окно, проверить detect/process/прогресс/отмену/историю/open, визуальный smoke, golden-паритет, отсутствие S3/Yandex/sync, неизменность `legacy/pyqt` и `tests/parity`, дизайн и коммиты.
+### Срез 6 — e2e/critic (smoke готов, critic следующий)
+**Live smoke 2026-11-18:** Tauri + WebView2 CDP, UI загрузился; реальный IPC `detect_statement`/`process_statement`; результаты/метрики/баланс, история и бэкап; output xlsx создан. Native file dialog открывается, но выбор файла автоматизировать не удалось — UI-путь расчёта проверен инъекцией source/detect в React state. Live-отмена не поймана (fixture быстрый); `open_file`/`open_folder` не запускались (Explorer).
+Осталось: финальный critic (golden, отсутствие S3/Yandex/sync, неизменность `legacy/pyqt`/`tests/parity`, дизайн, коммиты); ручной smoke native dialog/отмены/open; release key/secrets.
 
 ---
 

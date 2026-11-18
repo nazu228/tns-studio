@@ -1,6 +1,6 @@
 # Статус миграции TNS Energy Studio
 
-Обновлено: 2026-11-18. Ветка: `parity-harness` (срез 5 updater/CI).
+Обновлено: 2026-11-18. Ветка: `parity-harness` (срез 6 E2E smoke).
 
 ## Сделано
 
@@ -62,7 +62,11 @@
   `latest.json`, optional Authenticode), `scripts/release-latest-json.ps1`,
   README с секретами. `verify.ps1` теперь собирает UI до `cargo check src-tauri`
   и запускает `cargo test src-tauri`.
-- [ ] E2E/визуальный smoke.
+- [x] E2E/smoke, срез 6: live Tauri + WebView2 CDP. UI загрузился, `detect_statement`
+  и `process_statement` прошли через реальный IPC, результаты/метрики/баланс,
+  история и бэкап БД проверены. Native file dialog открывается, но его выбор
+  автоматизировать не удалось: UI-путь расчёта проверен инъекцией source/detect
+  в React state. Live-отмена не поймана — fixture слишком быстрый.
 
 ## Проверки
 
@@ -82,20 +86,21 @@
 | `.\scripts\verify.ps1 -RequireRustOutput` | All checks passed |
 | `scripts/release-latest-json.ps1` | проверен на dummy `.nsis.zip`/`.sig` |
 | `.github/workflows/*.yml` | YAML parsed; release не запускался без tag/secrets |
+| live Tauri smoke (WebView2 CDP) | UI loaded; detect/process/results/history/backup ok |
 | `npm --prefix apps/ui ci` | ok (26 packages, lock sync) |
 | `git diff parity-harness -- legacy/pyqt tests/parity/fixtures` | пусто |
 
 ## В работе
 
-- E2E/визуальный smoke в живом Tauri-окне.
 - Финальный critic: golden-паритет, отсутствие S3/Yandex/sync, дизайн, коммиты.
 
 ## Известные девиации
 
 - Облачная синхронизация и Yandex удалены по решению; UI не содержит кнопку «Облако».
-- React UI работает через реальный Tauri IPC; runtime-smoke в живом окне (прогресс,
-  отмена, история, open_file/open_folder) ещё не выполнялся, только typecheck/build
-  и контракты по исходникам Rust.
+- React UI работает через реальный Tauri IPC. Live-smoke 2026-11-18 проверен через
+  WebView2 CDP: detect/process/results/history/backup; native file dialog открывается,
+  но выбор файла и live-отмена автоматизированы не были. `open_file`/`open_folder`
+  не запускались (открывают Explorer).
 - Скриншоты legacy сняты на Windows-платформе (Segoe UI, кириллица); на другой машине
   пиксельный diff может отличаться — сравнивать с эталоном этой машины.
 - Writer рассчитан на один исходный лист. Legacy берёт `wb.active`, Rust пока
@@ -121,7 +126,6 @@
 
 ## Следующие шаги
 
-1. E2E/визуальный smoke в живом Tauri-окне; проверить detect/process/прогресс/отмену/историю.
-2. Финальный critic: golden-паритет, отсутствие S3/Yandex/sync, неизменность `legacy/pyqt`/`tests/parity`, дизайн.
-3. `graphify update .` после e2e (карта обновлена после updater/CI).
-4. При первом релизе: сгенерировать updater-ключ, заменить pubkey, добавить secrets, создать тег `v*`.
+1. Финальный critic: golden-паритет, отсутствие S3/Yandex/sync, неизменность `legacy/pyqt`/`tests/parity`, дизайн.
+2. Ручной smoke native file dialog, live-отмены и `open_file`/`open_folder`.
+3. При первом релизе: сгенерировать updater-ключ, заменить pubkey, добавить secrets, создать тег `v*`.
