@@ -28,16 +28,20 @@ try {
         Invoke-Step "npm ci (apps/ui)" { npm --prefix apps/ui ci --no-audit --no-fund }
     }
 
+    # Tauri's generate_context! reads frontendDist at compile time, so build the
+    # UI before any src-tauri cargo step in a fresh checkout/worktree.
+    Invoke-Step "npm typecheck" { npm --prefix apps/ui run typecheck }
+    Invoke-Step "npm build" { npm --prefix apps/ui run build }
+
     Invoke-Step "cargo test tns-core" { cargo test --manifest-path crates/tns-core/Cargo.toml }
     Invoke-Step "cargo test tns-db" { cargo test --manifest-path crates/tns-db/Cargo.toml }
     Invoke-Step "cargo test tns-excel" { cargo test --manifest-path crates/tns-excel/Cargo.toml }
+    Invoke-Step "cargo test src-tauri" { cargo test --manifest-path src-tauri/Cargo.toml }
     Invoke-Step "cargo check src-tauri" { cargo check --manifest-path src-tauri/Cargo.toml }
     Invoke-Step "cargo build tns-parity" { cargo build --manifest-path crates/tns-parity/Cargo.toml }
     $env:TNS_PARITY_BIN = Join-Path $root "target\debug\tns-parity.exe"
     $env:TNS_REQUIRE_RUST_OUTPUT = if ($RequireRustOutput) { "1" } else { "0" }
     Invoke-Step "pytest tests/parity" { python -m pytest tests/parity -q }
-    Invoke-Step "npm typecheck" { npm --prefix apps/ui run typecheck }
-    Invoke-Step "npm build" { npm --prefix apps/ui run build }
     # Fixtures and golden outputs are the oracle contract. Harness code under
     # tests/parity is allowed to evolve (signature coverage, Rust driver).
     # Prefer the local base branch: origin/parity-harness can be stale until the
