@@ -151,5 +151,6 @@ graphify update .   # после изменений кода
 - `main` — legacy-снапшот.
 - `rust-migration` — план миграции.
 - `parity-harness` — текущая ветка миграции; срезы 1–4 смержены, срез 5
-  (updater/CI) готовится в `release-updater`. Push не выполняется без отдельного
+  (updater/CI) готов в `release-updater` и ожидает merge. Следующий этап —
+  e2e/visual smoke и финальный critic. Push не выполняется без отдельного
   решения.
