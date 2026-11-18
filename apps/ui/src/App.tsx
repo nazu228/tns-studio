@@ -371,7 +371,7 @@ export default function App() {
       <header className="header card">
         <div>
           <h1>ТНС ЭНЕРГО • СТУДИЯ РАСЧЁТА НАЧИСЛЕНИЙ</h1>
-          <p className="subtitle">День · Ночь · ОДН&nbsp;&nbsp;|&nbsp;&nbsp;Проверка баланса&nbsp;&nbsp;|&nbsp;&nbsp;v2.2.4</p>
+          <p className="subtitle">День · Ночь · ОДН&nbsp;&nbsp;|&nbsp;&nbsp;Проверка баланса&nbsp;&nbsp;|&nbsp;&nbsp;v0.2.0</p>
         </div>
         <div>
           <button className="btn ghost" onClick={() => void openHistory()}>🕘 История</button>{" "}

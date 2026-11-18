@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "TNS Energy Studio",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.nazu228.tnsstudio",
   "build": {
-    "beforeDevCommand": "npm --prefix ../apps/ui run dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:5173",
-    "beforeBuildCommand": "npm --prefix ../apps/ui run build",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../apps/ui/dist"
   },
   "app": {
