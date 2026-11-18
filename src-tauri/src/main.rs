@@ -1,9 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use serde_json::json;
-use std::path::PathBuf;
+use serde_json::{json, Value};
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::Manager;
+use tns_core::{detect_statement_type, StatementKind};
 use tns_db::{Database, HistoryEntry};
 
 struct AppState {
@@ -64,9 +65,123 @@ fn config_get(state: tauri::State<'_, AppState>) -> serde_json::Value {
     })
 }
 
+struct DetectedFile {
+    path: PathBuf,
+    kind: StatementKind,
+    consumer: String,
+    contract: String,
+    error: Option<String>,
+}
+
+impl DetectedFile {
+    fn read(path: PathBuf) -> Self {
+        match tns_excel::read(&path) {
+            Ok(book) => {
+                let (kind, consumer, contract) = detect_statement_type(&book);
+                Self {
+                    path,
+                    kind,
+                    consumer,
+                    contract,
+                    error: None,
+                }
+            }
+            Err(error) => Self {
+                path,
+                kind: StatementKind::Unknown,
+                consumer: String::new(),
+                contract: String::new(),
+                error: Some(error.to_string()),
+            },
+        }
+    }
+
+    fn to_json(&self) -> Value {
+        json!({
+            "path": self.path.to_string_lossy(),
+            "kind": self.kind.as_str(),
+            "consumer": self.consumer,
+            "contract": self.contract,
+            "error": self.error,
+        })
+    }
+}
+
+fn detect_path(path: &Path) -> Result<Value, String> {
+    if !path.exists() {
+        return Err(format!("Путь не найден: {}", path.display()));
+    }
+
+    if path.is_file() {
+        let file = DetectedFile::read(path.to_path_buf());
+        if let Some(error) = file.error.as_deref() {
+            return Err(error.to_string());
+        }
+        return Ok(json!({
+            "path": file.path.to_string_lossy(),
+            "is_dir": false,
+            "kind": file.kind.as_str(),
+            "consumer": file.consumer,
+            "contract": file.contract,
+            "files": [file.to_json()],
+        }));
+    }
+
+    let mut candidates: Vec<PathBuf> = std::fs::read_dir(path)
+        .map_err(|error| format!("Не удалось прочитать папку {}: {error}", path.display()))?
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|entry| entry.is_file())
+        .filter(|entry| {
+            entry
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("xlsx"))
+        })
+        .filter(|entry| {
+            entry
+                .file_name()
+                .map_or(false, |name| !name.to_string_lossy().starts_with("~$"))
+        })
+        .collect();
+    candidates.sort_by_key(|entry| {
+        entry
+            .file_name()
+            .map(|name| name.to_string_lossy().to_lowercase())
+            .unwrap_or_default()
+    });
+
+    let files: Vec<DetectedFile> = candidates.into_iter().map(DetectedFile::read).collect();
+    let readable: Vec<&DetectedFile> = files.iter().filter(|file| file.error.is_none()).collect();
+    // The folder is a statement batch only when every readable workbook agrees on the type.
+    let kind = match readable.first() {
+        Some(first)
+            if first.kind != StatementKind::Unknown
+                && readable.iter().all(|file| file.kind == first.kind) =>
+        {
+            first.kind
+        }
+        _ => StatementKind::Unknown,
+    };
+    let (consumer, contract) = match readable.first() {
+        Some(first) if kind != StatementKind::Unknown => (first.consumer.clone(), first.contract.clone()),
+        _ => (String::new(), String::new()),
+    };
+
+    Ok(json!({
+        "path": path.to_string_lossy(),
+        "is_dir": true,
+        "kind": kind.as_str(),
+        "consumer": consumer,
+        "contract": contract,
+        "files": files.iter().map(|file| file.to_json()).collect::<Vec<Value>>(),
+    }))
+}
+
 #[tauri::command]
-fn detect_statement(_path: String) -> Result<serde_json::Value, String> {
-    Err("detect_statement: Excel-порт ещё не подключён".into())
+async fn detect_statement(path: String) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || detect_path(Path::new(&path)))
+        .await
+        .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
