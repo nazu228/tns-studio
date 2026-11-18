@@ -69,8 +69,8 @@ TNS Energy Studio — Windows-приложение для обработки в�
 
 ### Чего ещё нет
 
-- **Updater/CI**: закрыто в срезе 5; release workflow требует secrets и ещё ни разу не запускался.
-- **E2E/visual smoke**: живое Tauri-окно, прогресс/отмена/история, Playwright/скриншоты.
+- **Release 0.2.0**: unsigned NSIS собран и проверен; подписанные updater-артефакты требуют minisign-ключа, замены `pubkey` и secrets. GitHub Release/тег ещё не создавались.
+- **E2E/visual smoke**: live Tauri smoke выполнен; остались ручной native file dialog, live-отмена на большом файле, `open_file`/`open_folder` и финальная визуальная приёмка.
 - **TNS/WaterMetrics**: после TNS.
 - **No-code**: позже.
 
@@ -157,9 +157,15 @@ tns-studio/
 - `scripts/release-latest-json.ps1`: `windows-x86_64` signature+URL;
 - README: секреты, ключи, подписи, только GitHub Releases.
 
-### Срез 6 — e2e/critic (smoke готов, critic следующий)
-**Live smoke 2026-11-18:** Tauri + WebView2 CDP, UI загрузился; реальный IPC `detect_statement`/`process_statement`; результаты/метрики/баланс, история и бэкап; output xlsx создан. Native file dialog открывается, но выбор файла автоматизировать не удалось — UI-путь расчёта проверен инъекцией source/detect в React state. Live-отмена не поймана (fixture быстрый); `open_file`/`open_folder` не запускались (Explorer).
-Осталось: финальный critic (golden, отсутствие S3/Yandex/sync, неизменность `legacy/pyqt`/`tests/parity`, дизайн, коммиты); ручной smoke native dialog/отмены/open; release key/secrets.
+### Срез 6 — e2e/smoke (готов)
+**Статус: закрыт**; live smoke 2026-11-18. Tauri + WebView2 CDP, UI загрузился; реальный IPC `detect_statement`/`process_statement`; результаты/метрики/баланс, история и бэкап; output xlsx создан. Native file dialog открывается, но выбор файла автоматизировать не удалось — UI-путь расчёта проверен инъекцией source/detect в React state. Live-отмена не поймана (fixture быстрый); `open_file`/`open_folder` не запускались (Explorer).
+
+### Phase 2 — release 0.2.0 (подготовка)
+- Версия `0.2.0` в `tauri.conf.json`, `src-tauri/Cargo.toml`, UI package и subtitle; `Cargo.lock` обновлён.
+- Release workflow исправлен: workspace-артефакты в `target/release/bundle/nsis`, `RELEASE_NOTES.md` в тело GitHub Release и `latest.json`; `beforeBuildCommand`/`beforeDevCommand` — `npm run build`/`npm run dev` (Tauri запускает их из `apps/ui`).
+- `RELEASE_NOTES.md`; release checklist в README.
+- Локальная unsigned NSIS-сборка: `target/release/bundle/nsis/TNS Energy Studio_0.2.0_x64-setup.exe` (5 477 889 байт, SHA256 `6130A50DAC575DA9C9E90299EB637675F905DEB4BEE2058E8D95351F12A70686`); release binary CDP smoke — UI и `v0.2.0` загрузились.
+- **Не сделано:** подписанные updater-артефакты и GitHub Release. Локальная генерация `.key` заблокирована safety guard агента; ключ должен создать пользователь, затем заменить `pubkey`, добавить secrets и запустить подписанную сборку/тег `v0.2.0`.
 
 ---
 
@@ -206,7 +212,7 @@ python -m pytest tests/parity -q
 git diff --exit-code parity-harness -- legacy/pyqt tests/parity/fixtures
 ```
 
-Release (tag `v*`) выполняет `.github/workflows/release.yml`: verify, `npx @tauri-apps/cli@2 build --bundles nsis`, updater-подпись, `latest.json`, GitHub Release. Локально release не запускается.
+Release (tag `v*`) выполняет `.github/workflows/release.yml`: verify, `npx @tauri-apps/cli@2 build --bundles nsis`, updater-подпись, `latest.json`, GitHub Release. Workspace-артефакты лежат в `target/release/bundle/nsis`, не в `src-tauri/target`. Локальная unsigned-сборка 0.2.0 уже проверена; подписанная требует ключа.
 
 Guard использует локальную базу `parity-harness`, потому что `origin/parity-harness` может быть устаревшим до push. В CI после push можно сравнивать с `origin/parity-harness`.
 
@@ -237,6 +243,8 @@ Guard использует локальную базу `parity-harness`, пот�
 19. **Updater ключи**: `plugins.updater.pubkey` — placeholder. Для релиза нужен minisign-ключ, замена pubkey и secrets `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`; без них release job падает. `latest.json` лежит на `releases/latest/download/latest.json`.
 20. **Release workflow**: tag `v*` → NSIS + `*.nsis.zip` + `.sig`; `scripts/release-latest-json.ps1` собирает `windows-x86_64`. Authenticode-шаг подписывает `.exe` после bundling; для полной цепочки нужен `bundle.windows.signCommand`. Release ни разу не запускался без tag/secrets.
 21. **CI порядок**: `generate_context!` читает `apps/ui/dist` на этапе cargo, поэтому `verify.ps1` сначала делает `npm typecheck/build`, затем `cargo test/check src-tauri`; `cargo test src-tauri` включён в скрипт. После изменения lock — `npm ci`.
+22. **Release paths**: workspace target — `target/release/bundle/nsis`, не `src-tauri/target`. Tauri запускает `beforeBuildCommand` из `apps/ui`, поэтому там `npm run build`/`npm run dev`, а не `npm --prefix apps/ui`.
+23. **Updater key**: агент не может создавать `.key` (safety guard). Ключ генерирует пользователь: `npx @tauri-apps/cli@2 signer generate -w $env:USERPROFILE\.tauri\tns.key`; затем pubkey в конфиг, secrets `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`. Без этого signed updater-артефакты не собрать.
 
 ---
 
@@ -244,7 +252,7 @@ Guard использует локальную базу `parity-harness`, пот�
 
 В репозитории есть `graphify-out/`:
 
-- `graph.json` — граф (1011 узлов, 2095 рёбер, 57 сообществ на момент сборки);
+- `graph.json` — граф (1020 узлов, 2107 рёбер, 60 сообществ на момент сборки);
 - `graph.html` — интерактивная карта;
 - `GRAPH_REPORT.md` — отчёт: god nodes, связи, сообщества, циклы;
 - `manifest.json` — манифест для `--update`.
@@ -259,7 +267,7 @@ graphify explain "process_statement"
 graphify update .          # после изменений кода, без LLM
 ```
 
-Карта обновлена после среза 5; после правок запусти `graphify update .`.
+Карта обновлена после подготовки релиза; после правок запусти `graphify update .`.
 
 ---
 
@@ -267,8 +275,8 @@ graphify update .          # после изменений кода, без LLM
 
 1. Прочитай `docs/HANDOFF_PROMPT.md`, `docs/status.md`, `graphify-out/GRAPH_REPORT.md`.
 2. Обнови UI-зависимости (`npm --prefix apps/ui ci`, если менялся lock) и запусти `.\scripts\verify.ps1 -RequireRustOutput` — база: 32 Rust-теста, 22 pytest passed / 0 xfailed, UI typecheck/build.
-3. Возьми **срез 6 (e2e/visual smoke + critic)**. Не пытайся закрыть всё сразу.
-4. После каждого файла/теста — коммит. После среза — `cargo test` + `pytest` + `graphify update .`; финальный gate — `.\scripts\verify.ps1 -RequireRustOutput`.
-5. Если поведение legacy неоднозначно — читай `legacy/pyqt/core_engine.py` и `tests/parity/parity_lib.py`, не выдумывай.
+3. Сгенерируй minisign-ключ, замени `pubkey`, добавь GitHub secrets; собери подписанные NSIS/updater-артефакты и проверь `latest.json`.
+4. Создай тег `v0.2.0` и запусти release workflow; затем ручной smoke native dialog, live-отмены и `open_file`/`open_folder`.
+5. После правок кода — `graphify update .`; финальный gate — `.\scripts\verify.ps1 -RequireRustOutput`.
 
 **Цель**: TNS Energy Studio, полностью работающая на Rust + React + Tauri, с golden-паритетом, локальными данными и GitHub-обновлениями.

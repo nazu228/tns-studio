@@ -24,9 +24,12 @@ TNS Energy Studio — десктопное приложение для обра�
   both/dom/gorod, прогресс, отмена, результаты, история, бэкап, open file/folder.
 - Проверки: **32 Rust-теста** (core 16, db 4, excel 5, tauri 7) и
   **22 pytest passed / 0 xfailed**.
+- Подготовлен релиз `0.2.0`: версия обновлена, release workflow исправлен,
+  unsigned NSIS собран и проверен; подписанные updater-артефакты ждут ключа.
 
-Живой runtime-smoke (прогресс/отмена/история/open в собранном окне) ещё
-не выполнялся — это следующий этап вместе с e2e/visual smoke.
+Живой runtime-smoke выполнен в Tauri-окне: расчёт из UI создал xlsx, полностью
+совпадающий с golden; история и бэкап проверены. Ручная проверка нативного
+диалога выбора файла/папки и `open_file`/`open_folder` остаётся на приёмке.
 
 ## Структура
 
@@ -100,15 +103,16 @@ Rust-драйвер `crates/tns-parity` — отдельный процесс, �
 ## Updater и GitHub Releases
 
 Релиз запускается тегом `v*` (например, `v0.2.0`). Workflow
-`.github/workflows/release.yml` собирает NSIS-установщик и updater-артефакты,
-генерирует `latest.json` и публикует GitHub Release. Endpoint в
-`src-tauri/tauri.conf.json`:
+`.github/workflows/release.yml` собирает NSIS-установщик и updater-артефакты
+в `target/release/bundle/nsis`, генерирует `latest.json` и публикует GitHub
+Release. Endpoint в `src-tauri/tauri.conf.json`:
 
 ```text
 https://github.com/nazu228/tns-studio/releases/latest/download/latest.json
 ```
 
-`pubkey` в `plugins.updater` — placeholder. Перед первым релизом:
+`pubkey` в `plugins.updater` должен быть заменён на публичный ключ Tauri.
+Приватный ключ и пароль **не коммитятся**. Перед первым релизом:
 
 1. Сгенерируйте minisign-ключ Tauri:
    `npx --yes @tauri-apps/cli@2 signer generate -w $env:USERPROFILE\.tauri\tns.key`.
@@ -121,6 +125,18 @@ https://github.com/nazu228/tns-studio/releases/latest/download/latest.json
    - `WINDOWS_CERTIFICATE_PASSWORD` — пароль PFX.
 4. Создайте и запушьте тег `v0.2.0`.
 
+Локальная проверка подписанной сборки (после шага 1):
+
+```powershell
+$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content $env:USERPROFILE\.tauri\tns.key -Raw
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "<пароль ключа>"
+npx --yes @tauri-apps/cli@2 build --bundles nsis
+$asset = Get-ChildItem target\release\bundle\nsis\*.nsis.zip | Select-Object -First 1
+.\scripts\release-latest-json.ps1 -Version 0.2.0 -Tag v0.2.0 `
+  -AssetPath $asset.FullName -SignaturePath "$($asset.FullName).sig" `
+  -OutputPath latest.json -Notes (Get-Content RELEASE_NOTES.md -Raw -Encoding UTF8)
+```
+
 Без `TAURI_SIGNING_PRIVATE_KEY` release job падает до сборки. `latest.json`
 содержит `version`, `notes`, `pub_date` и `platforms.windows-x86_64` с
 подписью и URL на `*.nsis.zip`.
@@ -132,6 +148,9 @@ Authenticode-шаг опционален и подписывает `.exe` пос
 
 Yandex/S3/cloud sync не используются; `latest.json` и все артефакты лежат
 только в GitHub Releases.
+
+Release notes: `RELEASE_NOTES.md` (workflow кладёт их в тело GitHub Release и
+в `latest.json`).
 
 ## Handoff и карта кода
 
@@ -150,7 +169,5 @@ graphify update .   # после изменений кода
 
 - `main` — legacy-снапшот.
 - `rust-migration` — план миграции.
-- `parity-harness` — текущая ветка миграции; срезы 1–4 смержены, срез 5
-  (updater/CI) готов в `release-updater` и ожидает merge. Следующий этап —
-  e2e/visual smoke и финальный critic. Push не выполняется без отдельного
-  решения.
+- `parity-harness` — текущая ветка миграции; срезы 1–6 смержены, идёт подготовка
+  релиза `v0.2.0`. Push не выполняется без отдельного решения.
