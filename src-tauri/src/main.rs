@@ -2,14 +2,28 @@
 
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
-use tauri::Manager;
-use tns_core::{detect_statement_type, StatementKind};
-use tns_db::{Database, HistoryEntry};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use tauri::{Emitter, Manager};
+use tns_core::{
+    detect_statement_type, process_statement as run_statement, ProcessOptions, ProcessResult,
+    StatementKind,
+};
+use tns_db::{CalculationRecord, Database, HistoryEntry};
 
 struct AppState {
     db: Mutex<Database>,
     data_dir: PathBuf,
+    cancel: Arc<AtomicBool>,
+    running: Arc<AtomicBool>,
+}
+
+struct RunningGuard(Arc<AtomicBool>);
+
+impl Drop for RunningGuard {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
 }
 
 fn data_dir() -> PathBuf {
@@ -184,14 +198,121 @@ async fn detect_statement(path: String) -> Result<Value, String> {
         .map_err(|error| error.to_string())?
 }
 
+fn split_period(period: &str) -> (String, String) {
+    let cleaned = period.replace("г.", "");
+    let mut tokens = cleaned.split_whitespace().map(str::to_string);
+    match (tokens.next(), tokens.next()) {
+        (Some(month), Some(year)) if year.len() == 4 && year.chars().all(|value| value.is_ascii_digit()) => {
+            (month, year)
+        }
+        _ => (String::new(), String::new()),
+    }
+}
+
+fn record_history(db: &Database, result: &ProcessResult) -> Option<String> {
+    let org_type = if result.consumer.to_lowercase().contains("город") {
+        "gorod"
+    } else {
+        "dom"
+    };
+    let (month, year) = split_period(&result.period);
+    let saved_filename = Path::new(&result.target_path)
+        .file_name()
+        .map(|name| name.to_string_lossy().to_string());
+    let record = CalculationRecord {
+        period_month: month,
+        period_year: year,
+        org_type: org_type.to_string(),
+        org_name: result.consumer.clone(),
+        contract_number: result.contract.clone(),
+        houses_count: result.houses_count as i64,
+        total_day: result.total_day,
+        total_night: result.total_night,
+        total_odn: result.total_odn,
+        total_all: result.total_all,
+        balance_diff: result.balance_diff,
+        saved_filename,
+        calculated_at: None,
+    };
+    if let Err(error) = db.record_calculation(&record) {
+        return Some(error.to_string());
+    }
+    for row in &result.preview_rows {
+        if let Err(error) = db.register_or_update_house(
+            &result.contract,
+            &row.name,
+            row.meters_active as i64,
+            row.meters_res as i64,
+        ) {
+            return Some(error.to_string());
+        }
+    }
+    None
+}
+
 #[tauri::command]
-fn process_statement(
-    _source_path: String,
-    _output_dir: Option<String>,
-    _month: Option<String>,
-    _year: Option<String>,
+async fn process_statement(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    source_path: String,
+    output_dir: Option<String>,
+    month: Option<String>,
+    year: Option<String>,
+    custom_filename: Option<String>,
 ) -> Result<serde_json::Value, String> {
-    Err("process_statement: Excel-порт ещё не подключён".into())
+    if state
+        .running
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        return Err("Расчет уже выполняется.".into());
+    }
+    let _guard = RunningGuard(state.running.clone());
+    state.cancel.store(false, Ordering::SeqCst);
+
+    let app = app.clone();
+    let cancel_flag = state.cancel.clone();
+    let source = PathBuf::from(source_path);
+    let output = output_dir.map(PathBuf::from);
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let progress = |percent: u8, message: &str| {
+            let _ = app.emit(
+                "process-progress",
+                json!({ "percent": percent, "message": message }),
+            );
+        };
+        let cancel = move || cancel_flag.load(Ordering::SeqCst);
+        run_statement(
+            Path::new(&source),
+            ProcessOptions {
+                output_dir: output,
+                custom_filename,
+                month,
+                year,
+                progress: Some(&progress),
+                cancel: Some(&cancel),
+            },
+        )
+        .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())??;
+
+    let mut payload = serde_json::to_value(&result).map_err(|error| error.to_string())?;
+    let warning = match state.db.lock() {
+        Ok(db) => record_history(&db, &result),
+        Err(error) => Some(error.to_string()),
+    };
+    if let Some(warning) = warning {
+        payload["history_warning"] = json!(warning);
+    }
+    Ok(payload)
+}
+
+#[tauri::command]
+fn cancel_statement(state: tauri::State<'_, AppState>) -> serde_json::Value {
+    state.cancel.store(true, Ordering::SeqCst);
+    json!({ "cancelled": true })
 }
 
 #[tauri::command]
@@ -209,6 +330,8 @@ fn main() {
             app.manage(AppState {
                 db: Mutex::new(database),
                 data_dir: directory,
+                cancel: Arc::new(AtomicBool::new(false)),
+                running: Arc::new(AtomicBool::new(false)),
             });
             Ok(())
         })
@@ -220,6 +343,7 @@ fn main() {
             config_get,
             detect_statement,
             process_statement,
+            cancel_statement,
             update_check
         ])
         .run(tauri::generate_context!())
@@ -268,5 +392,15 @@ mod tests {
         );
         // dom_april, dom_march and gorod_april are mixed, so the folder has no single kind.
         assert_eq!(value["kind"], "unknown");
+    }
+
+    #[test]
+    fn splits_period_into_month_and_year() {
+        assert_eq!(
+            split_period("Апрель 2026 г."),
+            ("Апрель".to_string(), "2026".to_string())
+        );
+        assert_eq!(split_period("Без периода"), (String::new(), String::new()));
+        assert_eq!(split_period("Апрель 26"), (String::new(), String::new()));
     }
 }
