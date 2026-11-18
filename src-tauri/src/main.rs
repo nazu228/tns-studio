@@ -362,6 +362,14 @@ mod tests {
             .join("fixtures")
     }
 
+    fn temp_dir(label: &str) -> PathBuf {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or_default();
+        std::env::temp_dir().join(format!("tns-{label}-{}-{unique}", std::process::id()))
+    }
+
     #[test]
     fn detects_dom_file() {
         let value = detect_path(&fixtures().join("dom_april_2026.xlsx")).expect("detect dom");
@@ -402,5 +410,53 @@ mod tests {
         );
         assert_eq!(split_period("Без периода"), (String::new(), String::new()));
         assert_eq!(split_period("Апрель 26"), (String::new(), String::new()));
+    }
+
+    #[test]
+    fn missing_path_is_an_error() {
+        let error = detect_path(&temp_dir("missing")).expect_err("missing path");
+        assert!(error.contains("Путь не найден"), "unexpected error: {error}");
+    }
+
+    #[test]
+    fn empty_folder_is_unknown() {
+        let directory = temp_dir("empty");
+        std::fs::create_dir_all(&directory).expect("create temp dir");
+        let value = detect_path(&directory).expect("empty folder");
+        assert_eq!(value["is_dir"], true);
+        assert_eq!(value["kind"], "unknown");
+        assert_eq!(value["files"].as_array().map(Vec::len), Some(0));
+        std::fs::remove_dir_all(directory).expect("remove temp dir");
+    }
+
+    #[test]
+    fn records_calculation_and_houses() {
+        let directory = temp_dir("history");
+        std::fs::create_dir_all(&directory).expect("create temp dir");
+        let db = Database::open(directory.join("test.sqlite")).expect("open test db");
+        let result = run_statement(
+            &fixtures().join("dom_april_2026.xlsx"),
+            ProcessOptions {
+                output_dir: Some(directory.join("out")),
+                month: Some("Апрель".into()),
+                year: Some("2026".into()),
+                ..ProcessOptions::default()
+            },
+        )
+        .expect("process fixture");
+        assert!(record_history(&db, &result).is_none());
+        let history = db.history(10).expect("read history");
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].org_type, "dom");
+        assert_eq!(history[0].period_month, "Апрель");
+        assert_eq!(history[0].period_year, "2026");
+        assert_eq!(history[0].houses_count, result.houses_count as i64);
+        assert!(history[0].saved_filename.is_some());
+        assert_eq!(
+            db.summary().expect("db summary").houses_count,
+            result.houses_count as i64
+        );
+        drop(db);
+        std::fs::remove_dir_all(directory).expect("remove temp dir");
     }
 }
