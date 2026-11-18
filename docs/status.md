@@ -108,4 +108,4 @@
 1. Updater/CI: GitHub Releases + `latest.json` + minisign/Authenticode.
 2. E2E/визуальный smoke в живом Tauri-окне; проверить detect/process/прогресс/отмену/историю.
 3. Critic: golden-паритет, отсутствие S3/Yandex/sync, неизменность `legacy/pyqt`/`tests/parity`, дизайн.
-4. `graphify update .` после updater/CI и e2e.
+4. `graphify update .` после updater/CI и e2e (карта уже обновлена после UI-среза: 942 узла, 2033 ребра, 47 сообществ).
