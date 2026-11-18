@@ -225,3 +225,48 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("error while running TNS Energy Studio");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fixtures() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("tests")
+            .join("parity")
+            .join("fixtures")
+    }
+
+    #[test]
+    fn detects_dom_file() {
+        let value = detect_path(&fixtures().join("dom_april_2026.xlsx")).expect("detect dom");
+        assert_eq!(value["is_dir"], false);
+        assert_eq!(value["kind"], "dom");
+        assert!(!value["contract"].as_str().unwrap_or_default().is_empty());
+        assert_eq!(value["files"].as_array().map(Vec::len), Some(1));
+    }
+
+    #[test]
+    fn detects_gorod_file() {
+        let value = detect_path(&fixtures().join("gorod_april_2026.xlsx")).expect("detect gorod");
+        assert_eq!(value["is_dir"], false);
+        assert_eq!(value["kind"], "gorod");
+        assert!(!value["contract"].as_str().unwrap_or_default().is_empty());
+        assert_eq!(value["files"].as_array().map(Vec::len), Some(1));
+    }
+
+    #[test]
+    fn lists_fixture_folder() {
+        let value = detect_path(&fixtures()).expect("detect folder");
+        assert_eq!(value["is_dir"], true);
+        let files = value["files"].as_array().expect("files array");
+        assert!(
+            files.len() >= 3,
+            "expected at least 3 xlsx candidates, got {}",
+            files.len()
+        );
+        // dom_april, dom_march and gorod_april are mixed, so the folder has no single kind.
+        assert_eq!(value["kind"], "unknown");
+    }
+}
