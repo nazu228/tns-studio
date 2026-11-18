@@ -73,7 +73,7 @@ jobs:
           $cert = Join-Path $env:RUNNER_TEMP "codesign.pfx"
           [IO.File]::WriteAllBytes($cert, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
           try {
-            Get-ChildItem "src-tauri/target/release/bundle/nsis" -Filter "*.exe" | ForEach-Object {
+            Get-ChildItem "target/release/bundle/nsis" -Filter "*.exe" | ForEach-Object {
               & $signtool.FullName sign /f $cert /p $env:WINDOWS_CERTIFICATE_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $_.FullName
               if ($LASTEXITCODE -ne 0) { throw "signtool failed for $($_.Name)" }
             }
@@ -87,7 +87,7 @@ jobs:
           $config = Get-Content "src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json
           $version = $config.version
           $tag = "${{ github.ref_name }}"
-          $asset = Get-ChildItem "src-tauri/target/release/bundle/nsis" -Filter "*.nsis.zip" |
+          $asset = Get-ChildItem "target/release/bundle/nsis" -Filter "*.nsis.zip" |
             Sort-Object Name |
             Select-Object -First 1
           if (-not $asset) { throw "Updater archive (*.nsis.zip) not found" }
@@ -95,24 +95,27 @@ jobs:
           if (-not (Test-Path -LiteralPath $signature)) {
             throw "Updater signature not found: $signature. Check TAURI_SIGNING_PRIVATE_KEY."
           }
+          $notes = if (Test-Path "RELEASE_NOTES.md") { Get-Content "RELEASE_NOTES.md" -Raw -Encoding UTF8 } else { "" }
           .\scripts\release-latest-json.ps1 `
             -Version $version `
             -Tag $tag `
             -AssetPath $asset.FullName `
             -SignaturePath $signature `
-            -OutputPath latest.json
+            -OutputPath latest.json `
+            -Notes $notes
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: TNS Energy Studio ${{ github.ref_name }}
+          body_path: RELEASE_NOTES.md
           draft: false
           prerelease: false
           files: |
             latest.json
-            src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/bundle/nsis/*.nsis.zip
-            src-tauri/target/release/bundle/nsis/*.nsis.zip.sig
+            target/release/bundle/nsis/*.exe
+            target/release/bundle/nsis/*.nsis.zip
+            target/release/bundle/nsis/*.nsis.zip.sig
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
