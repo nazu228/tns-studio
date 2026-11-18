@@ -93,3 +93,15 @@
 **Why:** both failures look like code errors but are environment artifacts; fixing the environment keeps the gate honest.
 
 **Consequence:** `cargo test --manifest-path src-tauri/Cargo.toml` alone in a fresh clone/worktree can fail on missing `dist`; use the verify script or copy `dist` first. Do not add a permanent absolute target path to the repo.
+
+## 2026-11-18 — UI talks to Rust through one typed IPC module
+
+**Context:** `App.tsx` used mock rows and `setTimeout`; slice 3 exposed real Tauri commands, but their payloads are snake_case while JS arguments are camelCase. Spreading invoke calls across components would make that contract easy to break.
+
+**Decision:** `apps/ui/src/ipc.ts` owns the payload/argument types and every `invoke`, `listen` and dialog wrapper. `App.tsx` uses only those wrappers. UI mode/source/month are frozen while a calculation runs; progress is mapped 5–45 for dom and 50–95 for gorod in both mode; cancel is visible only while running; the progress bar is always present, as in legacy. The history modal loads only on open; backup/open file/open folder use the real command results.
+
+**Why:** one contract boundary mirrors the Rust commands and keeps the UI free of mock fallbacks. Freezing inputs prevents a UI state that disagrees with the running calculation.
+
+**Consequence:** after changing `apps/ui/package.json`/lock, run `npm --prefix apps/ui ci` so existing `node_modules` receive the new packages. `typecheck`/`build` validate the contract but not the live window; a Tauri runtime smoke remains a separate acceptance step. Future UI commands should be added to `ipc.ts`, not invoked ad hoc.
+
+**Tried and rejected:** direct `invoke` calls in components (scattered contract); keeping `setTimeout` as a demo fallback (would mask Tauri failures); a `pretypecheck` auto-`npm ci` script added by the squad triage (environment workaround, removed before merge; the canonical verify script owns dependency installation).

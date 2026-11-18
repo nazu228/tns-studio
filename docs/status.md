@@ -1,6 +1,6 @@
 # Статус миграции TNS Energy Studio
 
-Обновлено: 2026-11-18. Ветка: `parity-harness` (срез 3 Tauri commands).
+Обновлено: 2026-11-18. Ветка: `parity-harness` (срез 4 UI invoke).
 
 ## Сделано
 
@@ -52,7 +52,10 @@
 - [x] Выходная книга, срез 2: стили Segoe UI, заливки, границы, number formats,
   CF `H6:Hn`, hyperlink B6/B7; полный `xlsx_signature` — **0 diffs** на всех 3
   фикстурах, pytest **22 passed / 0 xfailed**.
-- [ ] UI invoke/listen вместо мока: detect/process/history/backup/open, прогресс/отмена.
+- [x] UI invoke, срез 4: `apps/ui/src/ipc.ts` — типизированный мост; detect файла/папки,
+  process both/dom/gorod, прогресс 5–45/50–95, отмена, история/бэкап/open; моки и
+  `setTimeout` удалены, дизайн сохранён. `npm ci`, typecheck, build — ok;
+  `scripts/verify.ps1 -RequireRustOutput` — All checks passed.
 - [ ] Updater/CI и e2e.
 
 ## Проверки
@@ -70,16 +73,21 @@
 | `cargo test --manifest-path src-tauri/Cargo.toml` | 7 passed |
 | `cargo test --manifest-path crates/tns-excel/Cargo.toml` | 5 passed |
 | `cargo build --manifest-path crates/tns-parity/Cargo.toml` | ok |
+| `.\scripts\verify.ps1 -RequireRustOutput` | All checks passed |
+| `npm --prefix apps/ui ci` | ok (26 packages, lock sync) |
 | `git diff parity-harness -- legacy/pyqt tests/parity/fixtures` | пусто |
 
 ## В работе
 
-- UI invoke/listen (срез 4): detect/process/history/backup/open, прогресс/отмена; дизайн не менять.
+- Updater/CI (срез 5): GitHub Releases + `latest.json` + minisign/Authenticode.
+- E2E/визуальный smoke в живом Tauri-окне.
 
 ## Известные девиации
 
 - Облачная синхронизация и Yandex удалены по решению; UI не содержит кнопку «Облако».
-- React UI пока на моковых данных; реальные данные появятся после Tauri-команд.
+- React UI работает через реальный Tauri IPC; runtime-smoke в живом окне (прогресс,
+  отмена, история, open_file/open_folder) ещё не выполнялся, только typecheck/build
+  и контракты по исходникам Rust.
 - Скриншоты legacy сняты на Windows-платформе (Segoe UI, кириллица); на другой машине
   пиксельный diff может отличаться — сравнивать с эталоном этой машины.
 - Writer рассчитан на один исходный лист. Legacy берёт `wb.active`, Rust пока
@@ -97,7 +105,7 @@
 
 ## Следующие шаги
 
-1. UI invoke/listen вместо мока; прогресс/ошибка/отмена/история; дизайн не менять.
-2. Updater/CI: GitHub Releases + `latest.json` + minisign/Authenticode.
-3. E2E + полный `scripts/verify.ps1 -RequireRustOutput`.
-4. `graphify update .` после UI-среза.
+1. Updater/CI: GitHub Releases + `latest.json` + minisign/Authenticode.
+2. E2E/визуальный smoke в живом Tauri-окне; проверить detect/process/прогресс/отмену/историю.
+3. Critic: golden-паритет, отсутствие S3/Yandex/sync, неизменность `legacy/pyqt`/`tests/parity`, дизайн.
+4. `graphify update .` после updater/CI и e2e.

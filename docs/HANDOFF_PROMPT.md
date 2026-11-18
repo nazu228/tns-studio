@@ -63,14 +63,14 @@ TNS Energy Studio — Windows-приложение для обработки в�
 | `crates/tns-core` output writer | срез 1+2: «Ведомость ЭП» + «Сводка по домам», формулы/merge/freeze/размеры/стили/CF/hyperlink/`safe_save` | full xlsx-golden 0 diffs на 3 фикстурах |
 | `crates/tns-db` | Схема legacy, seed, история, upsert домов, локальный бэкап, валидация | **4 passed** |
 | `src-tauri` | Tauri 2 shell, окно 1280×880, 9 команд; real `detect_statement`/`process_statement` (+cancel), progress, SQLite history/houses, dialog capability | **7 passed**, `cargo check` ok |
-| `apps/ui` | React/Vite главное окно TNS, design parity; данные пока моковые | `typecheck` + `build` ok |
+| `apps/ui` | React/Vite главное окно TNS, design parity; реальный Tauri IPC (`ipc.ts`), detect/process/progress/cancel/history/backup/open; моков и `setTimeout` нет | `typecheck` + `build` ok; full verify passed |
 
-Итого **32 Rust-теста** и **22 pytest passed, 0 xfailed**. `process_statement` совпадает с golden по `result` на dom/gorod; writer совпадает по полному xlsx-сигналу на всех 3 фикстурах, включая стили/CF/hyperlink; Tauri-команды detect/process покрыты тестами на фикстурах и пишут историю в SQLite.
+Итого **32 Rust-теста** и **22 pytest passed, 0 xfailed**. `process_statement` совпадает с golden по `result` на dom/gorod; writer совпадает по полному xlsx-сигналу на всех 3 фикстурах, включая стили/CF/hyperlink; Tauri-команды detect/process покрыты тестами на фикстурах и пишут историю в SQLite; UI вызывает их через `ipc.ts`, моков нет.
 
 ### Чего ещё нет
 
-- **UI**: `invoke`/`listen` вместо мока, прогресс/ошибки/отмена/история.
 - **Updater/CI**: `.github/workflows/release.yml`, `latest.json`, minisign/Authenticode.
+- **E2E/visual smoke**: живое Tauri-окно, прогресс/отмена/история, Playwright/скриншоты.
 - **TNS/WaterMetrics**: после TNS.
 - **No-code**: позже.
 
@@ -93,9 +93,10 @@ tns-studio/
     tauri.conf.json            # window/frontendDist/bundle
     capabilities/default.json  # core:default + dialog:default
   apps/ui/
-    src/App.tsx                # главное окно (design parity, mock data)
-    src/styles.css             # токены/тема
-    src/data.ts                # мок-данные (удалить после invoke)
+    src/App.tsx                # главное окно (design parity, реальный IPC)
+    src/ipc.ts                 # типы + invoke/listen/dialog обёртки
+    src/styles.css             # токены/тема + progress/history
+    src/data.ts                # только MONTHS/YEARS (моки удалены)
   tests/parity/                # фикстуры, golden, скриншоты, pytest
   docs/                        # план, инвентарь, матрица, статус
   scripts/verify.ps1           # полная проверка
@@ -137,7 +138,8 @@ tns-studio/
 - `tauri-plugin-dialog` + capabilities.
 Тест `detect_statement` на dom/gorod фикстурах.
 
-### Срез 4 — UI invoke
+### Срез 4 — UI invoke (готов)
+**Статус: закрыт**; `npm ci`, typecheck, build и полный `verify.ps1 -RequireRustOutput` — зелёные. `ipc.ts` — единый мост; App.tsx без моков/setTimeout; прогресс/отмена/история/бэкап/open работают через команды. Runtime-smoke в живом окне остаётся на e2e.
 `apps/ui`:
 - `@tauri-apps/api` + `@tauri-apps/plugin-dialog`;
 - убрать `setTimeout`/мок; `invoke`/`listen`;
@@ -145,7 +147,7 @@ tns-studio/
 - режимы both/dom/gorod; дизайн не менять; кнопки «Облако» нет.
 `npm run typecheck && npm run build`.
 
-### Срез 5 — updater/CI
+### Срез 5 — updater/CI (следующий)
 - `.github/workflows/release.yml`: windows-latest, cargo test, npm ci/build, tauri build, minisign, Authenticode placeholders, GitHub Release + `latest.json`;
 - `src-tauri/tauri.conf.json`: `plugins.updater.endpoints = ["https://github.com/nazu228/tns-studio/releases/latest/download/latest.json"]`, `createUpdaterArtifacts: true`, pubkey placeholder;
 - README: секреты, minisign, Authenticode, только GitHub Releases.
@@ -222,6 +224,8 @@ Guard использует локальную базу `parity-harness`, пот�
 14. **umya пустой `<diagonal/>`**: при любом border umya пишет пустой diagonal, openpyxl видит `Side(None,None)` вместо `None`. `tns-excel` удаляет пустой diagonal только у границ со стилем; не удалять у borderless-ячеек.
 15. **Пустая A итоговой строки**: legacy/openpyxl пишет `t="inlineStr"`; umya — numeric. `tns-excel` ставит `t="inlineStr"` только для переданной пустой координаты (A{6+houses.len()}). Не превращать это в общий inline-string writer без тестов.
 16. **Tauri IPC**: JS-аргументы camelCase (`sourcePath`, `outputDir`, `customFilename`); прогресс — событие `process-progress` с `{percent, message}`; `detect_statement` для папки отдаёт `files`, `kind` агрегируется только при единогласии; ошибка SQLite не валит сохранённый расчёт, а добавляет `history_warning`.
+17. **UI IPC**: payload-поля Rust остаются snake_case (`is_dir`, `preview_rows`, `history_warning`), аргументы JS — camelCase. Весь обмен — через `apps/ui/src/ipc.ts`; не возвращать моки/setTimeout. После изменения `package.json`/lock нужен `npm --prefix apps/ui ci`, иначе старые `node_modules` не увидят новые deps.
+18. **UI runtime**: typecheck/build не проверяют живое окно; перед релизом нужен smoke в Tauri (detect/process/прогресс/отмена/история/open).
 
 ---
 
@@ -251,8 +255,8 @@ graphify update .          # после изменений кода, без LLM
 ## 11. Первый шаг нового чата
 
 1. Прочитай `docs/HANDOFF_PROMPT.md`, `docs/status.md`, `graphify-out/GRAPH_REPORT.md`.
-2. Запусти `.\scripts\verify.ps1` — убедись, что база зелёная: 32 Rust-теста, 22 pytest passed / 0 xfailed.
-3. Возьми **срез 4 (UI invoke)**. Не пытайся закрыть всё сразу.
+2. Обнови UI-зависимости (`npm --prefix apps/ui ci`, если менялся lock) и запусти `.\scripts\verify.ps1 -RequireRustOutput` — база: 32 Rust-теста, 22 pytest passed / 0 xfailed, UI typecheck/build.
+3. Возьми **срез 5 (updater/CI)**. Не пытайся закрыть всё сразу.
 4. После каждого файла/теста — коммит. После среза — `cargo test` + `pytest` + `graphify update .`; финальный gate — `.\scripts\verify.ps1 -RequireRustOutput`.
 5. Если поведение legacy неоднозначно — читай `legacy/pyqt/core_engine.py` и `tests/parity/parity_lib.py`, не выдумывай.
 
