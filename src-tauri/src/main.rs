@@ -86,6 +86,7 @@ fn update_check() -> serde_json::Value {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let directory = data_dir();
             let database = Database::open(directory.join("tns_database.sqlite"))
