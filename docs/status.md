@@ -1,6 +1,6 @@
 # Статус миграции TNS Energy Studio
 
-Обновлено: 2026-11-18. Ветка: `parity-harness` (срез 4 UI invoke).
+Обновлено: 2026-11-18. Ветка: `parity-harness` (срез 5 updater/CI).
 
 ## Сделано
 
@@ -56,7 +56,13 @@
   process both/dom/gorod, прогресс 5–45/50–95, отмена, история/бэкап/open; моки и
   `setTimeout` удалены, дизайн сохранён. `npm ci`, typecheck, build — ok;
   `scripts/verify.ps1 -RequireRustOutput` — All checks passed.
-- [ ] Updater/CI и e2e.
+- [x] Updater/CI, срез 5: `tauri-plugin-updater`, endpoint GitHub `latest.json`,
+  `createUpdaterArtifacts`, capability `updater:default`, реальный `update_check`;
+  `.github/workflows/ci.yml` и `release.yml` (Windows, verify, NSIS, updater zip,
+  `latest.json`, optional Authenticode), `scripts/release-latest-json.ps1`,
+  README с секретами. `verify.ps1` теперь собирает UI до `cargo check src-tauri`
+  и запускает `cargo test src-tauri`.
+- [ ] E2E/визуальный smoke.
 
 ## Проверки
 
@@ -69,18 +75,20 @@
 | `cargo check --manifest-path crates/tns-core/Cargo.toml` | ok |
 | `cargo test --manifest-path crates/tns-core/Cargo.toml` | 16 passed |
 | `cargo test --manifest-path crates/tns-db/Cargo.toml` | 4 passed |
-| `cargo check --manifest-path src-tauri/Cargo.toml` | ok (Tauri 2.12, dialog) |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | ok (Tauri 2.12, dialog+updater) |
 | `cargo test --manifest-path src-tauri/Cargo.toml` | 7 passed |
 | `cargo test --manifest-path crates/tns-excel/Cargo.toml` | 5 passed |
 | `cargo build --manifest-path crates/tns-parity/Cargo.toml` | ok |
 | `.\scripts\verify.ps1 -RequireRustOutput` | All checks passed |
+| `scripts/release-latest-json.ps1` | проверен на dummy `.nsis.zip`/`.sig` |
+| `.github/workflows/*.yml` | YAML parsed; release не запускался без tag/secrets |
 | `npm --prefix apps/ui ci` | ok (26 packages, lock sync) |
 | `git diff parity-harness -- legacy/pyqt tests/parity/fixtures` | пусто |
 
 ## В работе
 
-- Updater/CI (срез 5): GitHub Releases + `latest.json` + minisign/Authenticode.
 - E2E/визуальный smoke в живом Tauri-окне.
+- Финальный critic: golden-паритет, отсутствие S3/Yandex/sync, дизайн, коммиты.
 
 ## Известные девиации
 
@@ -102,10 +110,18 @@
   `history_warning`, не Err.
 - Tauri IPC: аргументы в JS camelCase (`sourcePath`, `outputDir`, `customFilename`);
   событие прогресса — `process-progress` с `{percent, message}`.
+- Updater `pubkey` в `src-tauri/tauri.conf.json` — placeholder. До первого релиза
+  нужно сгенерировать minisign-ключ, заменить публичный ключ и добавить секреты
+  `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`; без них release job падает.
+- Authenticode-шаг опционален и подписывает `.exe` после Tauri bundling. Для полной
+  цепочки (подпись installer до updater-архива) нужен `bundle.windows.signCommand`;
+  текущий workflow — безопасный placeholder.
+- Release workflow не запускался: нет тега/секретов. Локально проверены YAML и
+  генератор `latest.json`, но не `tauri build` с подписью.
 
 ## Следующие шаги
 
-1. Updater/CI: GitHub Releases + `latest.json` + minisign/Authenticode.
-2. E2E/визуальный smoke в живом Tauri-окне; проверить detect/process/прогресс/отмену/историю.
-3. Critic: golden-паритет, отсутствие S3/Yandex/sync, неизменность `legacy/pyqt`/`tests/parity`, дизайн.
-4. `graphify update .` после updater/CI и e2e (карта уже обновлена после UI-среза: 942 узла, 2033 ребра, 47 сообществ).
+1. E2E/визуальный smoke в живом Tauri-окне; проверить detect/process/прогресс/отмену/историю.
+2. Финальный critic: golden-паритет, отсутствие S3/Yandex/sync, неизменность `legacy/pyqt`/`tests/parity`, дизайн.
+3. `graphify update .` после e2e (карта обновлена после updater/CI).
+4. При первом релизе: сгенерировать updater-ключ, заменить pubkey, добавить secrets, создать тег `v*`.

@@ -48,6 +48,30 @@
 
 **Tried and rejected:** `swap(0, 1)` for the summary (broke extra-sheet order when more than two sheets).
 
+## 2026-11-18 — Updates and releases are GitHub-only
+
+**Context:** the legacy app used Yandex Object Storage and a custom update helper. The migration must keep updates working without cloud sync or S3, and releases must be reproducible from the repository.
+
+**Decision:** use `tauri-plugin-updater` with the endpoint `https://github.com/nazu228/tns-studio/releases/latest/download/latest.json`, `bundle.createUpdaterArtifacts: true`, a GitHub Actions release workflow on tags `v*`, and a small `scripts/release-latest-json.ps1` that writes `platforms.windows-x86_64` with the minisign signature and release URL. `ci.yml` runs the full Windows verify on push/PR.
+
+**Why:** GitHub Releases is the only distribution channel in the migration plan; Tauri's updater and minisign are the supported signing path, and the release manifest stays in the same release as the artifacts.
+
+**Consequence:** `TAURI_SIGNING_PRIVATE_KEY` (and its password) is required for a release; the public key in `tauri.conf.json` is a placeholder until the first real key is generated. The workflow was not executed locally without a tag/secrets, so the first tag is the real release smoke.
+
+**Tried and rejected:** S3/Yandex endpoints (removed by decision); a separate minisign CLI step (Tauri signs the updater archive itself); publishing without a signing key (would produce unusable updates).
+
+## 2026-11-18 — Build the UI before Tauri checks in CI
+
+**Context:** `tauri::generate_context!` reads `frontendDist` (`apps/ui/dist`) at compile time. A fresh GitHub checkout or worktree has no `dist`, while the old `verify.ps1` ran `cargo check src-tauri` before `npm build`, so a clean CI run could fail even though local worktrees passed.
+
+**Decision:** `scripts/verify.ps1` runs `npm typecheck` and `npm build` before any `src-tauri` cargo step and includes `cargo test src-tauri`; CI calls the script after `npm ci`.
+
+**Why:** the canonical verification must pass from a clean checkout, not only from a developer worktree with a stale `dist`.
+
+**Consequence:** CI builds the UI first and then runs 32 Rust tests, parity, and the immutable guard. `npm ci` is required after lockfile changes; the script still installs if `node_modules/typescript` is missing.
+
+**Tried and rejected:** committing `apps/ui/dist`; relying on a manually copied `dist` in CI; adding an auto-`npm ci` prebuild hook to `package.json` (hidden side effects in the UI build).
+
 ## 2026-11-17 — Full xlsx signature is now the release gate
 
 **Context:** slice 2 ported fonts, fills, borders, number formats, conditional formatting and hyperlinks. The full `xlsx_signature` now matches the golden on dom/gorod/march, and pytest is 22 passed / 0 xfailed with and without `TNS_REQUIRE_RUST_OUTPUT=1`.

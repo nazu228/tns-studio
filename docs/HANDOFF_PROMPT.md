@@ -62,14 +62,14 @@ TNS Energy Studio — Windows-приложение для обработки в�
 | `crates/tns-core` | `normalize_header`, `row_type`, `safe_float`, `numeric_value`, `classify_zone`, `total_row`, `resolve_layout`, `extract_metadata`, `detect_statement_type`, `process_statement` (парсинг/итоги/result/прогресс/отмена) | **16 passed** |
 | `crates/tns-core` output writer | срез 1+2: «Ведомость ЭП» + «Сводка по домам», формулы/merge/freeze/размеры/стили/CF/hyperlink/`safe_save` | full xlsx-golden 0 diffs на 3 фикстурах |
 | `crates/tns-db` | Схема legacy, seed, история, upsert домов, локальный бэкап, валидация | **4 passed** |
-| `src-tauri` | Tauri 2 shell, окно 1280×880, 9 команд; real `detect_statement`/`process_statement` (+cancel), progress, SQLite history/houses, dialog capability | **7 passed**, `cargo check` ok |
+| `src-tauri` | Tauri 2 shell, окно 1280×880, 9 команд; real `detect_statement`/`process_statement` (+cancel), progress, SQLite history/houses, dialog+updater plugins | **7 passed**, `cargo check` ok |
 | `apps/ui` | React/Vite главное окно TNS, design parity; реальный Tauri IPC (`ipc.ts`), detect/process/progress/cancel/history/backup/open; моков и `setTimeout` нет | `typecheck` + `build` ok; full verify passed |
 
 Итого **32 Rust-теста** и **22 pytest passed, 0 xfailed**. `process_statement` совпадает с golden по `result` на dom/gorod; writer совпадает по полному xlsx-сигналу на всех 3 фикстурах, включая стили/CF/hyperlink; Tauri-команды detect/process покрыты тестами на фикстурах и пишут историю в SQLite; UI вызывает их через `ipc.ts`, моков нет.
 
 ### Чего ещё нет
 
-- **Updater/CI**: `.github/workflows/release.yml`, `latest.json`, minisign/Authenticode.
+- **Updater/CI**: закрыто в срезе 5; release workflow требует secrets и ещё ни разу не запускался.
 - **E2E/visual smoke**: живое Tauri-окно, прогресс/отмена/история, Playwright/скриншоты.
 - **TNS/WaterMetrics**: после TNS.
 - **No-code**: позже.
@@ -147,13 +147,18 @@ tns-studio/
 - режимы both/dom/gorod; дизайн не менять; кнопки «Облако» нет.
 `npm run typecheck && npm run build`.
 
-### Срез 5 — updater/CI (следующий)
-- `.github/workflows/release.yml`: windows-latest, cargo test, npm ci/build, tauri build, minisign, Authenticode placeholders, GitHub Release + `latest.json`;
-- `src-tauri/tauri.conf.json`: `plugins.updater.endpoints = ["https://github.com/nazu228/tns-studio/releases/latest/download/latest.json"]`, `createUpdaterArtifacts: true`, pubkey placeholder;
-- README: секреты, minisign, Authenticode, только GitHub Releases.
+### Срез 5 — updater/CI (готов)
+**Статус: закрыт**; CI/release workflows, `latest.json`, updater-плагин и README готовы; release не запускался без tag/secrets.
+- `src-tauri/Cargo.toml` + `main.rs`: `tauri-plugin-updater`, реальный async `update_check`;
+- `src-tauri/tauri.conf.json`: `plugins.updater.endpoints`, `createUpdaterArtifacts: true`, `pubkey` placeholder;
+- `capabilities/default.json`: `updater:default`;
+- `.github/workflows/ci.yml`: Windows, Node/Python/Rust, `verify.ps1 -RequireRustOutput`;
+- `.github/workflows/release.yml`: tag `v*`, NSIS + updater zip, optional Authenticode, `latest.json`, GitHub Release;
+- `scripts/release-latest-json.ps1`: `windows-x86_64` signature+URL;
+- README: секреты, ключи, подписи, только GitHub Releases.
 
-### Срез 6 — critic
-Прогнать всё, проверить golden-паритет, отсутствие S3/Yandex/sync, неизменность `legacy/pyqt` и `tests/parity`, дизайн, коммиты.
+### Срез 6 — e2e/critic (следующий)
+Прогнать живое Tauri-окно, проверить detect/process/прогресс/отмену/историю/open, визуальный smoke, golden-паритет, отсутствие S3/Yandex/sync, неизменность `legacy/pyqt` и `tests/parity`, дизайн и коммиты.
 
 ---
 
@@ -185,9 +190,11 @@ Release gate для полного xlsx-паритета (обязателен �
 .\scripts\verify.ps1 -RequireRustOutput
 ```
 
-Скрипт ставит `apps/ui/node_modules` при необходимости и гоняет:
+Скрипт ставит `apps/ui/node_modules` при необходимости, собирает UI до `cargo check src-tauri` (иначе `generate_context!` не найдёт `frontendDist`) и гоняет:
 
 ```powershell
+npm --prefix apps/ui run typecheck
+npm --prefix apps/ui run build
 cargo test --manifest-path crates/tns-core/Cargo.toml
 cargo test --manifest-path crates/tns-db/Cargo.toml
 cargo test --manifest-path crates/tns-excel/Cargo.toml
@@ -195,10 +202,10 @@ cargo test --manifest-path src-tauri/Cargo.toml
 cargo check --manifest-path src-tauri/Cargo.toml
 cargo build --manifest-path crates/tns-parity/Cargo.toml
 python -m pytest tests/parity -q
-npm --prefix apps/ui run typecheck
-npm --prefix apps/ui run build
 git diff --exit-code parity-harness -- legacy/pyqt tests/parity/fixtures
 ```
+
+Release (tag `v*`) выполняет `.github/workflows/release.yml`: verify, `npx @tauri-apps/cli@2 build --bundles nsis`, updater-подпись, `latest.json`, GitHub Release. Локально release не запускается.
 
 Guard использует локальную базу `parity-harness`, потому что `origin/parity-harness` может быть устаревшим до push. В CI после push можно сравнивать с `origin/parity-harness`.
 
@@ -216,7 +223,7 @@ Guard использует локальную базу `parity-harness`, пот�
 6. **Ошибки legacy** — дословно русские; не переписывать.
 7. **`scripts/cargo.ps1` под PowerShell 5.1** может спотыкаться на stderr cargo; `scripts/verify.ps1` — предпочтительный вход.
 8. **Squad**: агенты уже трижды падали на больших срезах (лимит шагов, пустой отчёт без коммита). Давай маленькие задачи, требуй коммит после каждого файла/теста; отчёт без коммита = failed.
-9. **`apps/ui/data.ts`** — мок; после invoke удалить, иначе риск расхождения с golden.
+9. **`apps/ui/data.ts`** — только `MONTHS`/`YEARS`; моки удалены. Не возвращать mock rows в UI, данные приходят из `ProcessResult`.
 10. **`src-tauri/gen/schemas/*`** может перегенерироваться `cargo check` с LF; не коммить случайные EOL-изменения.
 11. **Xlsx-гейт**: layout `include_styles=False` и полный `xlsx_signature` enforced; полный gate запускается `scripts/verify.ps1 -RequireRustOutput`. Пропавший output — всегда hard fail, style/CF/hyperlink diff при `TNS_REQUIRE_RUST_OUTPUT=1` — fail. Не ослаблять тесты.
 12. **umya ширины**: соседние `<col>` с одинаковой шириной coalesce; writer сдвигает вторую на `1e-7`, openpyxl `round(6)` это скрывает. Не убирать хак без замены.
@@ -226,6 +233,9 @@ Guard использует локальную базу `parity-harness`, пот�
 16. **Tauri IPC**: JS-аргументы camelCase (`sourcePath`, `outputDir`, `customFilename`); прогресс — событие `process-progress` с `{percent, message}`; `detect_statement` для папки отдаёт `files`, `kind` агрегируется только при единогласии; ошибка SQLite не валит сохранённый расчёт, а добавляет `history_warning`.
 17. **UI IPC**: payload-поля Rust остаются snake_case (`is_dir`, `preview_rows`, `history_warning`), аргументы JS — camelCase. Весь обмен — через `apps/ui/src/ipc.ts`; не возвращать моки/setTimeout. После изменения `package.json`/lock нужен `npm --prefix apps/ui ci`, иначе старые `node_modules` не увидят новые deps.
 18. **UI runtime**: typecheck/build не проверяют живое окно; перед релизом нужен smoke в Tauri (detect/process/прогресс/отмена/история/open).
+19. **Updater ключи**: `plugins.updater.pubkey` — placeholder. Для релиза нужен minisign-ключ, замена pubkey и secrets `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`; без них release job падает. `latest.json` лежит на `releases/latest/download/latest.json`.
+20. **Release workflow**: tag `v*` → NSIS + `*.nsis.zip` + `.sig`; `scripts/release-latest-json.ps1` собирает `windows-x86_64`. Authenticode-шаг подписывает `.exe` после bundling; для полной цепочки нужен `bundle.windows.signCommand`. Release ни разу не запускался без tag/secrets.
+21. **CI порядок**: `generate_context!` читает `apps/ui/dist` на этапе cargo, поэтому `verify.ps1` сначала делает `npm typecheck/build`, затем `cargo test/check src-tauri`; `cargo test src-tauri` включён в скрипт. После изменения lock — `npm ci`.
 
 ---
 
@@ -256,7 +266,7 @@ graphify update .          # после изменений кода, без LLM
 
 1. Прочитай `docs/HANDOFF_PROMPT.md`, `docs/status.md`, `graphify-out/GRAPH_REPORT.md`.
 2. Обнови UI-зависимости (`npm --prefix apps/ui ci`, если менялся lock) и запусти `.\scripts\verify.ps1 -RequireRustOutput` — база: 32 Rust-теста, 22 pytest passed / 0 xfailed, UI typecheck/build.
-3. Возьми **срез 5 (updater/CI)**. Не пытайся закрыть всё сразу.
+3. Возьми **срез 6 (e2e/visual smoke + critic)**. Не пытайся закрыть всё сразу.
 4. После каждого файла/теста — коммит. После среза — `cargo test` + `pytest` + `graphify update .`; финальный gate — `.\scripts\verify.ps1 -RequireRustOutput`.
 5. Если поведение legacy неоднозначно — читай `legacy/pyqt/core_engine.py` и `tests/parity/parity_lib.py`, не выдумывай.
 

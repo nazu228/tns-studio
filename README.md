@@ -1,47 +1,90 @@
 # TNS Energy Studio — миграция на Rust + React + Tauri
 
 TNS Energy Studio — десктопное приложение для обработки ведомостей энергосбыта
-(Excel → расчёт → Excel). Текущая версия написана на Python/PySide6.
+(Excel → расчёт → Excel). Legacy-версия на Python/PySide6 остаётся в
+`legacy/pyqt/` как неизменяемый оракул.
 
-Этот репозиторий — рабочая площадка миграции на новый стек:
+Новый стек:
 
-- **Rust core** (логика, SQLite, Excel, обновления)
-- **React + TypeScript + Vite** (UI, design parity с текущим приложением)
-- **Tauri 2** (десктопная оболочка)
-- **GitHub Releases** (обновления вместо Yandex Object Storage)
+- **Rust core** — парсинг, расчёт, SQLite, Excel (`umya-spreadsheet`);
+- **React + TypeScript + Vite** — UI с design parity;
+- **Tauri 2** — десктопная оболочка, локальные команды, прогресс/отмена;
+- **GitHub Releases** — обновления через Tauri updater; S3/Yandex не используются.
+
+## Текущее состояние
+
+- Parity-база: 3 golden-фикстуры, golden JSON/xlsx, 5 скриншотов legacy,
+  независимый `xlsx_signature`.
+- `crates/tns-core` — `process_statement` совпадает с golden по result и по
+  полной xlsx-сигнатуре (значения, формулы, merge, freeze, стили, CF, hyperlink).
+- `crates/tns-db` — локальная SQLite: история, дома, тарифы, бэкап.
+- `src-tauri` — реальные `detect_statement`/`process_statement`, прогресс
+  `process-progress`, `cancel_statement`, запись истории, updater-плагин.
+- `apps/ui` — реальный Tauri IPC вместо мока: выбор файла/папки, режимы
+  both/dom/gorod, прогресс, отмена, результаты, история, бэкап, open file/folder.
+- Проверки: **32 Rust-теста** (core 16, db 4, excel 5, tauri 7) и
+  **22 pytest passed / 0 xfailed**.
+
+Живой runtime-smoke (прогресс/отмена/история/open в собранном окне) ещё
+не выполнялся — это следующий этап вместе с e2e/visual smoke.
 
 ## Структура
 
-```
-legacy/pyqt/        # эталон: текущий исходник PySide6 (не менять, это оракул)
-crates/             # Rust workspace (создаётся в ходе миграции)
-src-tauri/          # Tauri shell (создаётся в ходе миграции)
-apps/ui/            # Vite + React UI (создаётся в ходе миграции)
-tests/parity/       # pytest: golden-файлы, скриншоты legacy, контракты
-docs/               # план миграции, инвентарь, матрица паритета
-.github/workflows/  # CI: build, test, release на GitHub
+```text
+legacy/pyqt/        # эталон PySide6, не менять
+crates/tns-core/    # парсинг, layout, writer, стили, process_statement
+crates/tns-db/      # SQLite: schema/seed/history/backup/validate
+crates/tns-excel/   # umya-обёртка, safe_save, xlsx post-processing
+crates/tns-parity/  # Rust-драйвер для pytest
+src-tauri/          # Tauri shell и команды
+apps/ui/            # Vite + React UI
+tests/parity/       # golden, фикстуры, скриншоты, oracle
+docs/               # план, инвентарь, parity-matrix, handoff
+.github/workflows/  # CI и GitHub Release
 ```
 
 ## Зафиксированные решения
 
-Полный список — в `docs/TNS_MIGRATION_PLAN.md`. Коротко:
+- UI — React/TS; ядро — Rust; оболочка — Tauri 2.
+- Визуальный паритет: та же компоновка, цвета, шрифты, поведение; без редизайна.
+- Данные — только локальная SQLite и локальные бэкапы. Облачной синхронизации нет.
+- Обновления — только GitHub Releases + `latest.json` + Tauri updater.
+- Подписи — minisign для updater и Authenticode для Windows.
+- `legacy/pyqt/**` и `tests/parity/fixtures/**` не изменяются.
 
-- UI — React/TS (не Rust); ядро — Rust; оболочка — Tauri 2.
-- Визуальный паритет: near-pixel (та же компоновка, цвета, шрифты, поведение; ±2px).
-- Данные — только локальная SQLite + локальные бэкапы. Облачная синхронизация (S3/Yandex) удалена.
-- Обновления — только GitHub: Releases + `latest.json` + Tauri updater. Yandex не используется.
-- Подписи: minisign (updater) + Authenticode (Windows).
-- No-code слой — позже. TMZ и WaterMetrics — после TNS.
+## Быстрый старт
 
-## Как запустить legacy-эталон
+```powershell
+# UI-зависимости (после изменения package-lock)
+npm --prefix apps/ui ci --no-audit --no-fund
+
+# Полная проверка: UI build → Rust tests/check → parity → guard
+.\scripts\verify.ps1 -RequireRustOutput
+
+# Отдельно Tauri-тесты
+cargo test --manifest-path src-tauri/Cargo.toml
+
+# Разработка UI
+npm --prefix apps/ui run dev
+```
+
+`verify.ps1` сначала собирает `apps/ui/dist`, потому что `tauri::generate_context!`
+читает `frontendDist` уже на этапе `cargo check`, затем гоняет все Rust-тесты,
+parity-тесты и проверяет неизменность `legacy/pyqt`/golden. Скрипт использует
+локальную ветку `parity-harness` для guard, если она существует.
+
+Если `cargo` не находит `link.exe`, используйте `.\scripts\cargo.ps1` или
+окружение MSVC Build Tools (`vcvars64.bat`).
+
+## Legacy-эталон
 
 ```powershell
 python legacy/pyqt/app_gui.py
 ```
 
-Нужен Python 3.11+ с PySide6, openpyxl. База создаётся и заполняется автоматически при первом запуске.
+Нужен Python 3.11+ с PySide6 и openpyxl. База создаётся автоматически.
 
-## Parity-харнесс (legacy — оракул)
+## Parity-харнесс
 
 ```powershell
 python tests/parity/scripts/gen_fixtures.py
@@ -50,64 +93,51 @@ python tests/parity/scripts/gen_screenshots.py
 python -m pytest tests/parity -q
 ```
 
-Сейчас: 3 фикстуры (dom/gorod/march), golden-выходы legacy, 5 скриншотов
-(`tests/parity/screenshots/`) и 7 зелёных тестов.
-`legacy/pyqt/` не изменяется: проверка `git diff --exit-code origin/rust-migration -- legacy/pyqt`.
+Фикстуры: `dom_april_2026.xlsx`, `gorod_april_2026.xlsx`,
+`dom_march_2026.xlsx`. Полный xlsx-сигнал сравнивается с golden через openpyxl;
+Rust-драйвер `crates/tns-parity` — отдельный процесс, не Rust-экстрактор.
 
-## Rust core
+## Updater и GitHub Releases
 
-```powershell
-.\scripts\cargo.ps1 check --manifest-path crates/tns-core/Cargo.toml
-.\scripts\cargo.ps1 test  --manifest-path crates/tns-core/Cargo.toml
-.\scripts\cargo.ps1 test  --manifest-path crates/tns-db/Cargo.toml
-.\scripts\cargo.ps1 test  --manifest-path crates/tns-excel/Cargo.toml
+Релиз запускается тегом `v*` (например, `v0.2.0`). Workflow
+`.github/workflows/release.yml` собирает NSIS-установщик и updater-артефакты,
+генерирует `latest.json` и публикует GitHub Release. Endpoint в
+`src-tauri/tauri.conf.json`:
+
+```text
+https://github.com/nazu228/tns-studio/releases/latest/download/latest.json
 ```
 
-Портированы чистые функции `normalize_header`, `row_type`, `safe_float`,
-`numeric_value`, `classify_zone`, `total_row` (6 тестов) и локальная БД
-`tns-db`: схема legacy, seed, история, upsert домов, бэкап, валидация
-(4 теста). `cargo test` требует MSVC Build Tools (`link.exe`).
+`pubkey` в `plugins.updater` — placeholder. Перед первым релизом:
 
-## Tauri shell
+1. Сгенерируйте minisign-ключ Tauri:
+   `npx --yes @tauri-apps/cli@2 signer generate -w $env:USERPROFILE\.tauri\tns.key`.
+2. Замените `pubkey` в `src-tauri/tauri.conf.json` на сгенерированный публичный ключ.
+3. Добавьте GitHub Actions secrets:
+   - `TAURI_SIGNING_PRIVATE_KEY` — содержимое приватного ключа (или путь, который
+     доступен runner'у; для GitHub надёжнее содержимое);
+   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — пароль ключа;
+   - `WINDOWS_CERTIFICATE` — base64 PFX для Authenticode (опционально);
+   - `WINDOWS_CERTIFICATE_PASSWORD` — пароль PFX.
+4. Создайте и запушьте тег `v0.2.0`.
 
-```powershell
-.\scripts\cargo.ps1 check --manifest-path src-tauri/Cargo.toml
-```
+Без `TAURI_SIGNING_PRIVATE_KEY` release job падает до сборки. `latest.json`
+содержит `version`, `notes`, `pub_date` и `platforms.windows-x86_64` с
+подписью и URL на `*.nsis.zip`.
 
-Tauri 2, окно 1280×880, `frontendDist` на `apps/ui/dist`. Команды:
-`history_list`, `backup_db`, `open_file`, `open_folder`, `config_get`,
-`detect_statement`, `process_statement`, `update_check`.
-`detect_statement`/`process_statement` пока заглушки до Excel-порта.
+Authenticode-шаг опционален и подписывает `.exe` после сборки. Для полной
+цепочки подписи установщика до создания updater-архива настройте
+`bundle.windows.signCommand` (Tauri подпишет installer в процессе bundling);
+текущий workflow — безопасный placeholder, а не финальная политика подписи.
 
-## React UI (Vite)
-
-```powershell
-cd apps/ui
-npm install
-npm run typecheck
-npm run build
-npm run dev
-```
-
-Сейчас это скелет главного окна TNS с design parity: шапка, режимы расчёта,
-выбор источника, месяц/год, карточки, вкладки «Дом»/«Город», таблица, итоги,
-справка. Кнопка «Облако» и S3-бейдж удалены по плану. Данные — моковые,
-Tauri-команды подключим после Rust-ядра.
-
-## Полная верификация
-
-```powershell
-.\scripts\verify.ps1
-```
-
-Скрипт ставит зависимости `apps/ui`, если `node_modules` отсутствует (в свежем worktree его нет
-и `tsc` не находится), затем гоняет `cargo test`/`check`, parity-тесты, `npm typecheck`/`build`
-и проверяет, что `legacy/pyqt` и `tests/parity` не изменены.
+Yandex/S3/cloud sync не используются; `latest.json` и все артефакты лежат
+только в GitHub Releases.
 
 ## Handoff и карта кода
 
 - `docs/HANDOFF_PROMPT.md` — полный промпт для нового чата/агента.
-- `graphify-out/GRAPH_REPORT.md` — карта кода (719 узлов, 1511 рёбер, 36 сообществ).
+- `docs/status.md` — фактический статус миграции.
+- `graphify-out/GRAPH_REPORT.md` — карта кода.
 - `graphify-out/graph.html` — интерактивная карта.
 - `graphify-out/graph.json` — граф для `graphify query/path/explain`.
 
@@ -116,10 +146,10 @@ graphify query "как process_statement связан с tns-db?"
 graphify update .   # после изменений кода
 ```
 
-## Статус миграции
+## Ветки
 
 - `main` — legacy-снапшот.
 - `rust-migration` — план миграции.
-- `parity-harness` — фикстуры, golden, скриншоты и тесты (готово).
-- `apps/ui` — React-скелет главного окна (готово).
-- Rust-ядро и Tauri-оболочка — следующий этап; нужен Rust toolchain + MSVC Build Tools.
+- `parity-harness` — текущая ветка миграции; срезы 1–4 смержены, срез 5
+  (updater/CI) готовится в `release-updater`. Push не выполняется без отдельного
+  решения.
