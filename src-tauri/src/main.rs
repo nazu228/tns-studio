@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
+use tauri_plugin_updater::UpdaterExt;
 use tns_core::{
     detect_statement_type, process_statement as run_statement, ProcessOptions, ProcessResult,
     StatementKind,
@@ -316,13 +317,25 @@ fn cancel_statement(state: tauri::State<'_, AppState>) -> serde_json::Value {
 }
 
 #[tauri::command]
-fn update_check() -> serde_json::Value {
-    json!({ "status": "not_configured", "source": "github" })
+async fn update_check(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let updater = app.updater().map_err(|error| error.to_string())?;
+    match updater.check().await {
+        Ok(Some(update)) => Ok(json!({
+            "available": true,
+            "version": update.version,
+            "current_version": update.current_version,
+            "body": update.body,
+            "date": update.date.map(|date| date.to_string()),
+        })),
+        Ok(None) => Ok(json!({ "available": false })),
+        Err(error) => Err(error.to_string()),
+    }
 }
 
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let directory = data_dir();
             let database = Database::open(directory.join("tns_database.sqlite"))
