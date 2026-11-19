@@ -44,12 +44,12 @@ try {
     Invoke-Step "pytest tests/parity" { python -m pytest tests/parity -q }
     # Fixtures and golden outputs are the oracle contract. Harness code under
     # tests/parity is allowed to evolve (signature coverage, Rust driver).
-    # Prefer the local base branch: origin/parity-harness can be stale until the
-    # migration branch is pushed.
+    # Compare against the remote base, not the checked-out branch: on CI the
+    # local branch is the commit under test, so a local base would make the
+    # guard a no-op. Workflows fetch origin/parity-harness explicitly.
     $guardBase = "origin/parity-harness"
-    git rev-parse --verify --quiet parity-harness *> $null
-    if ($LASTEXITCODE -eq 0) {
-        $guardBase = "parity-harness"
+    if (-not (git rev-parse --verify --quiet $guardBase)) {
+        throw "Guard base $guardBase not found; fetch origin/parity-harness first"
     }
     Invoke-Step "legacy/parity guard" { git diff --exit-code $guardBase -- legacy/pyqt tests/parity/fixtures }
 }
