@@ -56,7 +56,7 @@
 
 **Why:** GitHub Releases is the only distribution channel in the migration plan; Tauri's updater and minisign are the supported signing path, and the release manifest stays in the same release as the artifacts.
 
-**Consequence:** `TAURI_SIGNING_PRIVATE_KEY` (and its password) is required for a release; the public key in `tauri.conf.json` is a placeholder until the first real key is generated. The workflow was not executed locally without a tag/secrets, so the first tag is the real release smoke.
+**Consequence:** `TAURI_SIGNING_PRIVATE_KEY` (and its password) is required for a release; the public key in `tauri.conf.json` is installed (`8f9ab17`), while the private key and password remain user-owned. The workflow was not executed locally without a tag/secrets, so the first tag is the real release smoke.
 
 **Tried and rejected:** S3/Yandex endpoints (removed by decision); a separate minisign CLI step (Tauri signs the updater archive itself); publishing without a signing key (would produce unusable updates).
 
@@ -146,10 +146,10 @@
 
 **Context:** a local signed release needs a Tauri/minisign key. The agent safety guard blocks creating `.key` files, and the private key must never enter the repository or conversation logs.
 
-**Decision:** the release intentionally keeps `plugins.updater.pubkey` as `REPLACE_WITH_TAURI_UPDATER_PUBKEY` until the user runs `signer generate`, updates the public key, and adds `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD` secrets. The unsigned NSIS installer is built and smoke-tested as packaging evidence; signed updater artifacts and the GitHub Release are a manual release gate.
+**Decision:** the release now has a real public key in `plugins.updater.pubkey` (`8f9ab17`); the private key and password remain user-owned. The user must add `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD` secrets and build signed artifacts; the unsigned NSIS installer is packaging evidence only, and the GitHub Release remains a manual gate.
 
 **Why:** signing keys are user-owned secrets; an unverified or placeholder signature would be worse than no signed artifact. The agent can prepare everything reproducible without handling the private key.
 
-**Consequence:** `v0.2.0` is release-prepared but not publishable until the key/secrets are configured. The release workflow fails fast when `TAURI_SIGNING_PRIVATE_KEY` is missing. Do not commit the key, password, or generated credentials.
+**Consequence:** `v0.2.0` is release-prepared but not publishable until the secrets and signed build are configured. The release workflow fails fast when `TAURI_SIGNING_PRIVATE_KEY` is missing or `pubkey` is left as a placeholder. Do not commit the key, password, or generated credentials.
 
 **Tried and rejected:** creating a test `.key` in a temp directory (blocked by the safety guard); using a non-`.key` filename to bypass the guard (not allowed); publishing an unsigned updater archive with a dummy signature (invalid updater).

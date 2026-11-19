@@ -69,7 +69,7 @@ TNS Energy Studio — Windows-приложение для обработки в�
 
 ### Чего ещё нет
 
-- **Release 0.2.0**: unsigned NSIS собран и проверен; подписанные updater-артефакты требуют minisign-ключа, замены `pubkey` и secrets. GitHub Release/тег ещё не создавались.
+- **Release 0.2.0**: unsigned NSIS собран и проверен; `pubkey` установлен (`8f9ab17`), подписанные updater-артефакты требуют secrets. GitHub Release/тег ещё не создавались.
 - **E2E/visual smoke**: live Tauri smoke выполнен; остались ручной native file dialog, live-отмена на большом файле, `open_file`/`open_folder` и финальная визуальная приёмка.
 - **TNS/WaterMetrics**: после TNS.
 - **No-code**: позже.
@@ -150,7 +150,7 @@ tns-studio/
 ### Срез 5 — updater/CI (готов)
 **Статус: закрыт**; CI/release workflows, `latest.json`, updater-плагин и README готовы; release не запускался без tag/secrets.
 - `src-tauri/Cargo.toml` + `main.rs`: `tauri-plugin-updater`, реальный async `update_check`;
-- `src-tauri/tauri.conf.json`: `plugins.updater.endpoints`, `createUpdaterArtifacts: true`, `pubkey` placeholder;
+- `src-tauri/tauri.conf.json`: `plugins.updater.endpoints`, `createUpdaterArtifacts: true`, `pubkey` установлен (`8f9ab17`);
 - `capabilities/default.json`: `updater:default`;
 - `.github/workflows/ci.yml`: Windows, Node/Python/Rust, `verify.ps1 -RequireRustOutput`;
 - `.github/workflows/release.yml`: tag `v*`, NSIS + updater zip, optional Authenticode, `latest.json`, GitHub Release;
@@ -165,7 +165,7 @@ tns-studio/
 - Release workflow исправлен: workspace-артефакты в `target/release/bundle/nsis`, `RELEASE_NOTES.md` в тело GitHub Release и `latest.json`; `beforeBuildCommand`/`beforeDevCommand` — `npm run build`/`npm run dev` (Tauri запускает их из `apps/ui`).
 - `RELEASE_NOTES.md`; release checklist в README.
 - Локальная unsigned NSIS-сборка: `target/release/bundle/nsis/TNS Energy Studio_0.2.0_x64-setup.exe` (5 477 889 байт, SHA256 `6130A50DAC575DA9C9E90299EB637675F905DEB4BEE2058E8D95351F12A70686`); release binary CDP smoke — UI и `v0.2.0` загрузились.
-- **Не сделано:** подписанные updater-артефакты и GitHub Release. Локальная генерация `.key` заблокирована safety guard агента; ключ должен создать пользователь, затем заменить `pubkey`, добавить secrets и запустить подписанную сборку/тег `v0.2.0`.
+- **Не сделано:** подписанные updater-артефакты и GitHub Release. Ключ создан пользователем, `pubkey` установлен; осталось добавить secrets и запустить подписанную сборку/тег `v0.2.0`.
 
 ---
 
@@ -240,11 +240,11 @@ Guard использует локальную базу `parity-harness`, пот�
 16. **Tauri IPC**: JS-аргументы camelCase (`sourcePath`, `outputDir`, `customFilename`); прогресс — событие `process-progress` с `{percent, message}`; `detect_statement` для папки отдаёт `files`, `kind` агрегируется только при единогласии; ошибка SQLite не валит сохранённый расчёт, а добавляет `history_warning`.
 17. **UI IPC**: payload-поля Rust остаются snake_case (`is_dir`, `preview_rows`, `history_warning`), аргументы JS — camelCase. Весь обмен — через `apps/ui/src/ipc.ts`; не возвращать моки/setTimeout. После изменения `package.json`/lock нужен `npm --prefix apps/ui ci`, иначе старые `node_modules` не увидят новые deps.
 18. **UI runtime**: typecheck/build не проверяют живое окно; перед релизом нужен smoke в Tauri (detect/process/прогресс/отмена/история/open).
-19. **Updater ключи**: `plugins.updater.pubkey` — placeholder. Для релиза нужен minisign-ключ, замена pubkey и secrets `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`; без них release job падает. `latest.json` лежит на `releases/latest/download/latest.json`.
+19. **Updater ключи**: `plugins.updater.pubkey` установлен (`8f9ab17`). Для релиза нужны secrets `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`; без них release job падает. `latest.json` лежит на `releases/latest/download/latest.json`.
 20. **Release workflow**: tag `v*` → NSIS + `*.nsis.zip` + `.sig`; `scripts/release-latest-json.ps1` собирает `windows-x86_64`. Authenticode-шаг подписывает `.exe` после bundling; для полной цепочки нужен `bundle.windows.signCommand`. Release ни разу не запускался без tag/secrets.
 21. **CI порядок**: `generate_context!` читает `apps/ui/dist` на этапе cargo, поэтому `verify.ps1` сначала делает `npm typecheck/build`, затем `cargo test/check src-tauri`; `cargo test src-tauri` включён в скрипт. После изменения lock — `npm ci`.
 22. **Release paths**: workspace target — `target/release/bundle/nsis`, не `src-tauri/target`. Tauri запускает `beforeBuildCommand` из `apps/ui`, поэтому там `npm run build`/`npm run dev`, а не `npm --prefix apps/ui`.
-23. **Updater key**: агент не может создавать `.key` (safety guard). Ключ генерирует пользователь: `npx @tauri-apps/cli@2 signer generate -w $env:USERPROFILE\.tauri\tns.key`; затем pubkey в конфиг, secrets `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`. Без этого signed updater-артефакты не собрать.
+23. **Updater key**: агент не может создавать/читать `.key` (safety guard). Ключ генерирует пользователь: `npx @tauri-apps/cli@2 signer generate -w $env:USERPROFILE\.tauri\tns-0.2.0.key`; pubkey уже в конфиге, осталось secrets `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`. Без этого signed updater-артефакты не собрать.
 
 ---
 
@@ -275,7 +275,7 @@ graphify update .          # после изменений кода, без LLM
 
 1. Прочитай `docs/HANDOFF_PROMPT.md`, `docs/status.md`, `graphify-out/GRAPH_REPORT.md`.
 2. Обнови UI-зависимости (`npm --prefix apps/ui ci`, если менялся lock) и запусти `.\scripts\verify.ps1 -RequireRustOutput` — база: 32 Rust-теста, 22 pytest passed / 0 xfailed, UI typecheck/build.
-3. Сгенерируй minisign-ключ, замени `pubkey`, добавь GitHub secrets; собери подписанные NSIS/updater-артефакты и проверь `latest.json`.
+3. Добавь GitHub secrets для установленного ключа (`TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`); собери подписанные NSIS/updater-артефакты и проверь `latest.json`.
 4. Создай тег `v0.2.0` и запусти release workflow; затем ручной smoke native dialog, live-отмены и `open_file`/`open_folder`.
 5. После правок кода — `graphify update .`; финальный gate — `.\scripts\verify.ps1 -RequireRustOutput`.
 

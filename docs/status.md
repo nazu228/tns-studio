@@ -80,9 +80,8 @@
   `target/release/bundle/nsis/TNS Energy Studio_0.2.0_x64-setup.exe`
   (5 477 889 байт, SHA256 `6130A50DAC575DA9C9E90299EB637675F905DEB4BEE2058E8D95351F12A70686`).
   Release binary CDP smoke: UI загрузился, title и `v0.2.0` видны.
-- [ ] Подписанные updater-артефакты: локальная генерация `.key` заблокирована
-  safety guard агента; пользователь должен сгенерировать ключ, заменить `pubkey`,
-  добавить secrets и собрать/запустить release workflow.
+- [ ] Подписанные updater-артефакты: ключ создан пользователем, `pubkey` установлен
+  (`8f9ab17`); осталось добавить secrets и собрать/запустить release workflow.
 - [ ] GitHub Release и тег `v0.2.0` не создавались.
 
 ## Проверки
@@ -110,8 +109,8 @@
 
 ## В работе
 
-- Release 0.2.0: ключ updater, `pubkey`, GitHub secrets, подписанная сборка и
-  первый тег `v0.2.0`; затем ручной smoke native file dialog и open file/folder.
+- Release 0.2.0: GitHub secrets, подписанная сборка и первый тег `v0.2.0`;
+  затем ручной smoke native file dialog и open file/folder.
 
 ## Известные девиации
 
@@ -134,10 +133,10 @@
   `history_warning`, не Err.
 - Tauri IPC: аргументы в JS camelCase (`sourcePath`, `outputDir`, `customFilename`);
   событие прогресса — `process-progress` с `{percent, message}`.
-- Updater `pubkey` в `src-tauri/tauri.conf.json` — placeholder. До первого релиза
-  нужно сгенерировать minisign-ключ, заменить публичный ключ и добавить секреты
-  `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`; без них release job падает. Локальная
-  unsigned-сборка 0.2.0 уже проверена, но подписанные updater-артефакты не созданы.
+- Updater `pubkey` в `src-tauri/tauri.conf.json` установлен (`8f9ab17`). Для релиза
+  осталось добавить секреты `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`; без них release
+  job падает. Локальная unsigned-сборка 0.2.0 проверена, подписанные updater-артефакты
+  ещё не созданы.
 - Release workflow не запускался: нет тега/секретов. После настройки ключа
   проверить `npx @tauri-apps/cli@2 build --bundles nsis`, наличие `*.nsis.zip.sig`
   и `latest.json`, затем создать тег `v0.2.0`.
@@ -147,7 +146,7 @@
 
 ## Следующие шаги
 
-1. Сгенерировать minisign-ключ Tauri, заменить `pubkey`, добавить GitHub secrets.
+1. Добавить GitHub secrets для установленного ключа (`TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`).
 2. Собрать подписанные NSIS/updater-артефакты и проверить `latest.json`.
 3. Создать и запушить тег `v0.2.0`; проверить GitHub Release.
 4. Ручной smoke native file dialog, live-отмены и `open_file`/`open_folder`.

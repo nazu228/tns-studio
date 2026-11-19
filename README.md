@@ -111,12 +111,12 @@ Release. Endpoint в `src-tauri/tauri.conf.json`:
 https://github.com/nazu228/tns-studio/releases/latest/download/latest.json
 ```
 
-`pubkey` в `plugins.updater` должен быть заменён на публичный ключ Tauri.
-Приватный ключ и пароль **не коммитятся**. Перед первым релизом:
+`pubkey` в `plugins.updater` уже установлен (commit `8f9ab17`); для ротации замените его новым публичным ключом.
+Приватный ключ и пароль **не коммитятся**. Перед первым релизом/ротацией:
 
 1. Сгенерируйте minisign-ключ Tauri:
-   `npx --yes @tauri-apps/cli@2 signer generate -w $env:USERPROFILE\.tauri\tns.key`.
-2. Замените `pubkey` в `src-tauri/tauri.conf.json` на сгенерированный публичный ключ.
+   `npx --yes @tauri-apps/cli@2 signer generate -w $env:USERPROFILE\.tauri\tns-0.2.0.key`.
+2. Проверьте, что `pubkey` в `src-tauri/tauri.conf.json` соответствует ключу; для новой пары — замените.
 3. Добавьте GitHub Actions secrets:
    - `TAURI_SIGNING_PRIVATE_KEY` — содержимое приватного ключа (или путь, который
      доступен runner'у; для GitHub надёжнее содержимое);
@@ -128,7 +128,7 @@ https://github.com/nazu228/tns-studio/releases/latest/download/latest.json
 Локальная проверка подписанной сборки (после шага 1):
 
 ```powershell
-$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content $env:USERPROFILE\.tauri\tns.key -Raw
+$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content $env:USERPROFILE\.tauri\tns-0.2.0.key -Raw
 $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "<пароль ключа>"
 npx --yes @tauri-apps/cli@2 build --bundles nsis
 $asset = Get-ChildItem target\release\bundle\nsis\*.nsis.zip | Select-Object -First 1
@@ -137,7 +137,7 @@ $asset = Get-ChildItem target\release\bundle\nsis\*.nsis.zip | Select-Object -Fi
   -OutputPath latest.json -Notes (Get-Content RELEASE_NOTES.md -Raw -Encoding UTF8)
 ```
 
-Без `TAURI_SIGNING_PRIVATE_KEY` release job падает до сборки. `latest.json`
+Без `TAURI_SIGNING_PRIVATE_KEY` (или при placeholder `pubkey`) release job падает до сборки. `latest.json`
 содержит `version`, `notes`, `pub_date` и `platforms.windows-x86_64` с
 подписью и URL на `*.nsis.zip`.
 
