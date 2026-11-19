@@ -131,7 +131,7 @@ https://github.com/nazu228/tns-studio/releases/latest/download/latest.json
 $env:TAURI_SIGNING_PRIVATE_KEY = Get-Content $env:USERPROFILE\.tauri\tns-0.2.0.key -Raw
 $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "<пароль ключа>"
 npx --yes @tauri-apps/cli@2 build --bundles nsis
-$asset = Get-ChildItem target\release\bundle\nsis\*.nsis.zip | Select-Object -First 1
+$asset = Get-ChildItem target\release\bundle\nsis\*-setup.exe | Select-Object -First 1
 .\scripts\release-latest-json.ps1 -Version 0.2.0 -Tag v0.2.0 `
   -AssetPath $asset.FullName -SignaturePath "$($asset.FullName).sig" `
   -OutputPath latest.json -Notes (Get-Content RELEASE_NOTES.md -Raw -Encoding UTF8)
@@ -139,12 +139,12 @@ $asset = Get-ChildItem target\release\bundle\nsis\*.nsis.zip | Select-Object -Fi
 
 Без `TAURI_SIGNING_PRIVATE_KEY` (или при placeholder `pubkey`) release job падает до сборки. `latest.json`
 содержит `version`, `notes`, `pub_date` и `platforms.windows-x86_64` с
-подписью и URL на `*.nsis.zip`.
+подписью и URL на `*-setup.exe`.
 
-Authenticode-шаг опционален и подписывает `.exe` после сборки. Для полной
-цепочки подписи установщика до создания updater-архива настройте
-`bundle.windows.signCommand` (Tauri подпишет installer в процессе bundling);
-текущий workflow — безопасный placeholder, а не финальная политика подписи.
+Authenticode-шаг опционален, но подписывает `.exe` после Tauri и делает
+сгенерированный `.exe.sig` недействительным. Для полной цепочки настройте
+`bundle.windows.signCommand`, чтобы Authenticode применялся до updater-подписи;
+без сертификата оставьте `WINDOWS_CERTIFICATE` пустым.
 
 Yandex/S3/cloud sync не используются; `latest.json` и все артефакты лежат
 только в GitHub Releases.

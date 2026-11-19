@@ -101,10 +101,10 @@ jobs:
           $config = Get-Content "src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json
           $version = $config.version
           $tag = "${{ github.ref_name }}"
-          $asset = Get-ChildItem "target/release/bundle/nsis" -Filter "*.nsis.zip" |
+          $asset = Get-ChildItem "target/release/bundle/nsis" -Filter "*-setup.exe" |
             Sort-Object Name |
             Select-Object -First 1
-          if (-not $asset) { throw "Updater archive (*.nsis.zip) not found" }
+          if (-not $asset) { throw "NSIS installer (*-setup.exe) not found" }
           $signature = "$($asset.FullName).sig"
           if (-not (Test-Path -LiteralPath $signature)) {
             throw "Updater signature not found: $signature. Check TAURI_SIGNING_PRIVATE_KEY."
@@ -128,8 +128,7 @@ jobs:
           prerelease: false
           files: |
             latest.json
-            target/release/bundle/nsis/*.exe
-            target/release/bundle/nsis/*.nsis.zip
-            target/release/bundle/nsis/*.nsis.zip.sig
+            target/release/bundle/nsis/*-setup.exe
+            target/release/bundle/nsis/*-setup.exe.sig
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

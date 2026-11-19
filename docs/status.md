@@ -100,7 +100,7 @@
 | `cargo test --manifest-path crates/tns-excel/Cargo.toml` | 5 passed |
 | `cargo build --manifest-path crates/tns-parity/Cargo.toml` | ok |
 | `.\scripts\verify.ps1 -RequireRustOutput` | All checks passed |
-| `scripts/release-latest-json.ps1` | проверен на dummy `.nsis.zip`/`.sig` |
+| `scripts/release-latest-json.ps1` | проверен на dummy installer `.exe`/`.sig` |
 | `.github/workflows/*.yml` | YAML parsed; release не запускался без tag/secrets |
 | live Tauri smoke (WebView2 CDP) | UI loaded; detect/process/results/history/backup ok |
 | release build (unsigned NSIS) | `TNS Energy Studio_0.2.0_x64-setup.exe`, CDP smoke ok |
@@ -138,11 +138,11 @@
   job падает. Локальная unsigned-сборка 0.2.0 проверена, подписанные updater-артефакты
   ещё не созданы.
 - Release workflow не запускался: нет тега/секретов. После настройки ключа
-  проверить `npx @tauri-apps/cli@2 build --bundles nsis`, наличие `*.nsis.zip.sig`
+  проверить `npx @tauri-apps/cli@2 build --bundles nsis`, наличие `*-setup.exe.sig`
   и `latest.json`, затем создать тег `v0.2.0`.
-- Authenticode-шаг опционален и подписывает `.exe` после Tauri bundling; для полной
-  цепочки (подпись installer до updater-архива) нужен `bundle.windows.signCommand`.
-  Текущий workflow — безопасный placeholder.
+- Authenticode-шаг опционален и подписывает `.exe` после Tauri bundling; это
+  инвалидирует `.exe.sig`. Для полной цепочки нужен `bundle.windows.signCommand`
+  до updater-подписи; без сертификата шаг пропускается.
 
 ## Следующие шаги
 
