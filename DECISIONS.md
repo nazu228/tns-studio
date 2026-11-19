@@ -153,3 +153,13 @@
 **Consequence:** `v0.2.0` is release-prepared but not publishable until the secrets and signed build are configured. The release workflow fails fast when `TAURI_SIGNING_PRIVATE_KEY` is missing or `pubkey` is left as a placeholder. Do not commit the key, password, or generated credentials.
 
 **Tried and rejected:** creating a test `.key` in a temp directory (blocked by the safety guard); using a non-`.key` filename to bypass the guard (not allowed); publishing an unsigned updater archive with a dummy signature (invalid updater).
+
+## 2026-11-19 — Release 0.2.0 was published as `v0.2.0-1`
+
+**Context:** the first `v0.2.0` tag pointed at a pre-fix commit. The release workflow then failed on a missing `origin/parity-harness` guard ref and on an incorrect `.nsis.zip` assumption (Tauri NSIS emits `*-setup.exe` plus `.exe.sig`). The agent safety guard prevents deleting or moving tags.
+
+**Decision:** publish the fixed build as GitHub Release `v0.2.0-1` from `1ee0257`. The updater asset is `*-setup.exe` with its adjacent `.exe.sig`; `latest.json` uses the GitHub-sanitized asset name (spaces replaced by dots). The old `v0.2.0` tag remains but has no release and is not used.
+
+**Why:** this is the only agent-permitted path that leaves a working updater release without bypassing the tag safety guard. The app code at the failed and fixed tags is the same; only CI/release documentation changed.
+
+**Consequence:** `releases/latest/download/latest.json` serves version 0.2.0 and a valid installer URL. Future releases should use a normal `vX.Y.Z` tag. The old tag can be deleted manually by the user; GitHub CDN may serve the previous `latest.json` for a few minutes after an asset replacement.

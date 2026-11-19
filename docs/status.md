@@ -1,6 +1,6 @@
 # Статус миграции TNS Energy Studio
 
-Обновлено: 2026-11-18. Ветка: `parity-harness` (подготовка релиза 0.2.0).
+Обновлено: 2026-11-19. Ветка: `parity-harness` (релиз 0.2.0 опубликован как `v0.2.0-1`).
 
 ## Сделано
 
@@ -68,7 +68,7 @@
   автоматизировать не удалось: UI-путь расчёта проверен инъекцией source/detect
   в React state. Live-отмена не поймана — fixture слишком быстрый.
 
-### Phase 2 — release 0.2.0 (подготовка)
+### Phase 2 — release 0.2.0 (опубликован как `v0.2.0-1`)
 - [x] Версия `0.2.0` в `tauri.conf.json`, `src-tauri/Cargo.toml`, UI package и
   subtitle; `Cargo.lock` обновлён.
 - [x] Release workflow исправлен под workspace: артефакты в
@@ -80,9 +80,11 @@
   `target/release/bundle/nsis/TNS Energy Studio_0.2.0_x64-setup.exe`
   (5 477 889 байт, SHA256 `6130A50DAC575DA9C9E90299EB637675F905DEB4BEE2058E8D95351F12A70686`).
   Release binary CDP smoke: UI загрузился, title и `v0.2.0` видны.
-- [ ] Подписанные updater-артефакты: ключ создан пользователем, `pubkey` установлен
-  (`8f9ab17`); осталось добавить secrets и собрать/запустить release workflow.
-- [ ] GitHub Release и тег `v0.2.0` не создавались.
+- [x] Подписанные updater-артефакты: ключ создан пользователем, `pubkey` установлен
+  (`8f9ab17`), secrets добавлены; release workflow собрал `*-setup.exe` и `.exe.sig`.
+- [x] GitHub Release `v0.2.0-1` опубликован: installer, `.exe.sig`, `latest.json`;
+  `releases/latest/download/latest.json` отдаёт версию 0.2.0 и URL на installer.
+  Старый тег `v0.2.0` остался без релиза и не используется.
 
 ## Проверки
 
@@ -101,7 +103,7 @@
 | `cargo build --manifest-path crates/tns-parity/Cargo.toml` | ok |
 | `.\scripts\verify.ps1 -RequireRustOutput` | All checks passed |
 | `scripts/release-latest-json.ps1` | проверен на dummy installer `.exe`/`.sig` |
-| `.github/workflows/*.yml` | YAML parsed; release не запускался без tag/secrets |
+| `.github/workflows/release.yml` | run 44471114550 success: verify, NSIS, `.exe.sig`, `latest.json`, GitHub Release |
 | live Tauri smoke (WebView2 CDP) | UI loaded; detect/process/results/history/backup ok |
 | release build (unsigned NSIS) | `TNS Energy Studio_0.2.0_x64-setup.exe`, CDP smoke ok |
 | `npm --prefix apps/ui ci` | ok (26 packages, lock sync) |
@@ -109,8 +111,8 @@
 
 ## В работе
 
-- Release 0.2.0: GitHub secrets, подписанная сборка и первый тег `v0.2.0`;
-  затем ручной smoke native file dialog и open file/folder.
+- Ручной smoke native file dialog, live-отмены и `open_file`/`open_folder` на
+  release-сборке; дальнейшие релизы — обычным тегом `v*`.
 
 ## Известные девиации
 
@@ -133,21 +135,19 @@
   `history_warning`, не Err.
 - Tauri IPC: аргументы в JS camelCase (`sourcePath`, `outputDir`, `customFilename`);
   событие прогресса — `process-progress` с `{percent, message}`.
-- Updater `pubkey` в `src-tauri/tauri.conf.json` установлен (`8f9ab17`). Для релиза
-  осталось добавить секреты `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`; без них release
-  job падает. Локальная unsigned-сборка 0.2.0 проверена, подписанные updater-артефакты
-  ещё не созданы.
-- Release workflow не запускался: нет тега/секретов. После настройки ключа
-  проверить `npx @tauri-apps/cli@2 build --bundles nsis`, наличие `*-setup.exe.sig`
-  и `latest.json`, затем создать тег `v0.2.0`.
+- Updater `pubkey` установлен (`8f9ab17`), secrets добавлены, release workflow
+  успешно собрал `*-setup.exe` + `.exe.sig`; GitHub Release `v0.2.0-1` опубликован.
+- GitHub CDN для `releases/latest/download/latest.json` может отдавать старую
+  версию несколько минут после замены asset; проверять с cache-buster или после
+  истечения кеша. URL installer в `latest.json` использует точки вместо пробелов,
+  как GitHub переименовывает assets.
 - Authenticode-шаг опционален и подписывает `.exe` после Tauri bundling; это
   инвалидирует `.exe.sig`. Для полной цепочки нужен `bundle.windows.signCommand`
   до updater-подписи; без сертификата шаг пропускается.
 
 ## Следующие шаги
 
-1. Добавить GitHub secrets для установленного ключа (`TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`).
-2. Собрать подписанные NSIS/updater-артефакты и проверить `latest.json`.
-3. Создать и запушить тег `v0.2.0`; проверить GitHub Release.
-4. Ручной smoke native file dialog, live-отмены и `open_file`/`open_folder`.
-5. Финальный critic и визуальная приёмка на release-сборке.
+1. Ручной smoke native file dialog, live-отмены и `open_file`/`open_folder` на release-сборке.
+2. Проверить обновление с предыдущей версии через `latest.json`.
+3. Финальный critic и визуальная приёмка на release-сборке.
+4. При желании удалить старый тег `v0.2.0` вручную; агент не может удалять теги.
