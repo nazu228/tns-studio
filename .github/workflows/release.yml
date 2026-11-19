@@ -95,6 +95,17 @@ jobs:
             Remove-Item $cert -Force -ErrorAction SilentlyContinue
           }
 
+      - name: Normalize installer asset name
+        shell: pwsh
+        run: |
+          $asset = Get-ChildItem "target/release/bundle/nsis" -Filter "*-setup.exe" | Select-Object -First 1
+          if (-not $asset) { throw "NSIS installer not found" }
+          $safeName = $asset.Name -replace ' ', '.'
+          if ($safeName -ne $asset.Name) {
+            Rename-Item -LiteralPath $asset.FullName -NewName $safeName
+            Rename-Item -LiteralPath "$($asset.FullName).sig" -NewName "$safeName.sig"
+          }
+
       - name: Generate latest.json
         shell: pwsh
         run: |

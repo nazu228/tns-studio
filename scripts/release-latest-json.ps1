@@ -20,7 +20,9 @@ if ([string]::IsNullOrWhiteSpace($Notes)) {
     $Notes = "TNS Energy Studio $Version"
 }
 
-$assetName = [IO.Path]::GetFileName($asset)
+# GitHub release asset uploads replace spaces with dots; keep the URL aligned
+# with the name the asset actually gets in the release.
+$assetName = ([IO.Path]::GetFileName($asset)) -replace ' ', '.'
 $assetUrl = "https://github.com/nazu228/tns-studio/releases/download/$Tag/$([Uri]::EscapeDataString($assetName))"
 $payload = [ordered]@{
     version   = $Version
