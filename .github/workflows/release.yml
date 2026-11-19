@@ -58,6 +58,15 @@ jobs:
             throw "Set the TAURI_SIGNING_PRIVATE_KEY repository secret before releasing."
           }
 
+      - name: Require updater pubkey
+        shell: pwsh
+        run: |
+          $config = Get-Content "src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json
+          $pubkey = $config.plugins.updater.pubkey
+          if ([string]::IsNullOrWhiteSpace($pubkey) -or $pubkey -like "REPLACE_*") {
+            throw "Replace plugins.updater.pubkey in src-tauri/tauri.conf.json with the generated Tauri public key before releasing."
+          }
+
       - name: Build NSIS and updater artifacts
         shell: pwsh
         run: npx --yes @tauri-apps/cli@2 build --bundles nsis
