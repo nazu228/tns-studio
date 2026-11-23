@@ -27,8 +27,9 @@ TNS Energy Studio — десктопное приложение для обра�
   режимы both/dom/gorod, прогресс, отмена, результаты, история, бэкап, open file/folder.
 - Проверки: **62 Rust-теста** (core 16, db 4, excel 7, tauri 9, pdf 26) и
   **22 pytest passed / 0 xfailed**.
-- Релиз `0.2.0` опубликован как GitHub Release `v0.2.0-1`: NSIS installer,
+- Релиз `0.2.1` опубликован как GitHub Release `v0.2.1`: NSIS installer,
   `.exe.sig` и `latest.json`; updater проверен через GitHub endpoint.
+  Предыдущий релиз `0.2.0` вышел как `v0.2.0-1`.
 
 Живой runtime-smoke выполнен в Tauri-окне: расчёт из UI создал xlsx, полностью
 совпадающий с golden; история и бэкап проверены. Ручная проверка нативного
@@ -119,7 +120,7 @@ Rust-драйвер `crates/tns-parity` — отдельный процесс, �
 
 ## Updater и GitHub Releases
 
-Релиз запускается тегом `v*` (например, `v0.2.0`). Workflow
+Релиз запускается тегом `v*` (например, `v0.2.1`). Workflow
 `.github/workflows/release.yml` собирает NSIS-установщик и updater-артефакты
 в `target/release/bundle/nsis`, генерирует `latest.json` и публикует GitHub
 Release. Endpoint в `src-tauri/tauri.conf.json`:
@@ -140,7 +141,7 @@ https://github.com/nazu228/tns-studio/releases/latest/download/latest.json
    - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — пароль ключа;
    - `WINDOWS_CERTIFICATE` — base64 PFX для Authenticode (опционально);
    - `WINDOWS_CERTIFICATE_PASSWORD` — пароль PFX.
-4. Создайте и запушьте тег `v0.2.0`.
+4. Создайте и запушьте тег `v0.2.1`.
 
 Локальная проверка подписанной сборки (после шага 1):
 
@@ -149,7 +150,7 @@ $env:TAURI_SIGNING_PRIVATE_KEY = Get-Content $env:USERPROFILE\.tauri\tns-0.2.0.k
 $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "<пароль ключа>"
 npx --yes @tauri-apps/cli@2 build --bundles nsis
 $asset = Get-ChildItem target\release\bundle\nsis\*-setup.exe | Select-Object -First 1
-.\scripts\release-latest-json.ps1 -Version 0.2.0 -Tag v0.2.0 `
+.\scripts\release-latest-json.ps1 -Version 0.2.1 -Tag v0.2.1 `
   -AssetPath $asset.FullName -SignaturePath "$($asset.FullName).sig" `
   -OutputPath latest.json -Notes (Get-Content RELEASE_NOTES.md -Raw -Encoding UTF8)
 ```
@@ -186,5 +187,6 @@ graphify update .   # после изменений кода
 
 - `main` — legacy-снапшот.
 - `rust-migration` — план миграции.
-- `parity-harness` — текущая ветка миграции; срезы 1–6 смержены, релиз `0.2.0`
-  опубликован как `v0.2.0-1`, ветка запушена. Старый тег `v0.2.0` не содержит релиза.
+- `parity-harness` — текущая ветка миграции; срезы 1–7 смержены, релиз `0.2.1`
+  опубликован как `v0.2.1` (PDF), предыдущий `0.2.0` — `v0.2.0-1`. Старый тег
+  `v0.2.0` не содержит релиза.

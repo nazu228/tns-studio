@@ -199,3 +199,15 @@
 **Consequence:** the UI accepts `.xlsx` and `.pdf`, shows all generated statements in the status line and keeps the latest result per organization in the tabs. Live CDP smoke: a dom PDF produced 3 houses / 137107.602, a 226-page combined PDF produced two statements (736051.312 and 1032745.77) with both files and history rows. PDFium calls stay sequential and the parser still rejects scans/unknown layouts.
 
 **Tried and rejected:** detecting PDF statements during folder selection (would parse hundreds of pages just to show a hint); a PDF-specific writer or history path (would fork parity); copying the DLL next to the debug exe instead of a bundled resource (not reproducible in releases).
+
+## 2026-11-23 — Release 0.2.1 ships PDF support as a normal vX.Y.Z tag
+
+**Context:** PDF 7a–7c are merged and verified (62 Rust tests, 22 pytest, live Tauri smoke on real PDFs), but the published 0.2.0 installer does not include them.
+
+**Decision:** bump the app/UI versions to 0.2.1, refresh `RELEASE_NOTES.md` for PDF support, run the full gate, then push `parity-harness` and the plain tag `v0.2.1` so the existing release workflow builds and publishes. No workflow changes were needed for this tag.
+
+**Why:** the signing key, secrets and release workflow are already proven by 0.2.0; a normal tag is the intended release path and keeps the updater chain intact.
+
+**Consequence:** GitHub Release `v0.2.1` published `TNS.Energy.Studio_0.2.1_x64-setup.exe` (8 475 181 bytes), `.exe.sig` and `latest.json` (run 45155312014 success); `releases/latest/download/latest.json` serves 0.2.1 with a valid installer URL, so installed 0.2.0 apps update through the Tauri updater. The stale `v0.2.0` tag still needs manual deletion; local desktop copies stay on 0.2.0 until updated.
+
+**Tried and rejected:** replacing only the local installed exe (would diverge from the published updater release); reworking the release workflow for this tag (not needed).

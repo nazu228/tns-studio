@@ -70,7 +70,7 @@ TNS Energy Studio — Windows-приложение для обработки в�
 
 ### Чего ещё нет
 
-- **Release 0.2.0**: опубликован как GitHub Release `v0.2.0-1` — NSIS `*-setup.exe`, `.exe.sig`, `latest.json`; updater endpoint отдаёт 0.2.0. Старый тег `v0.2.0` остался без релиза и не используется.
+- **Release 0.2.1 (текущий)**: опубликован как GitHub Release `v0.2.1` — NSIS `*-setup.exe`, `.exe.sig`, `latest.json`; updater endpoint отдаёт 0.2.1. Предыдущий `0.2.0` вышел как `v0.2.0-1`; старый тег `v0.2.0` не используется.
 - **E2E/visual smoke**: live Tauri smoke выполнен; остались ручной native file dialog, live-отмена на большом файле, `open_file`/`open_folder` и финальная визуальная приёмка.
 - **TNS/WaterMetrics**: после TNS.
 - **No-code**: позже.
@@ -168,6 +168,12 @@ tns-studio/
 - Локальная unsigned NSIS-сборка: `target/release/bundle/nsis/TNS Energy Studio_0.2.0_x64-setup.exe` (5 477 889 байт, SHA256 `6130A50DAC575DA9C9E90299EB637675F905DEB4BEE2058E8D95351F12A70686`); release binary CDP smoke — UI и `v0.2.0` загрузились.
 - **Опубликовано:** GitHub Release `v0.2.0-1` (installer + `.exe.sig` + `latest.json`); release workflow run 44471114550 успешен. Старый тег `v0.2.0` не содержит релиза; удаление тега — вручную.
 
+### Phase 2.1 — release 0.2.1 (PDF, опубликован)
+- Версия `0.2.1` в `tauri.conf.json`, `src-tauri/Cargo.toml`, UI package/subtitle; `RELEASE_NOTES.md` под PDF.
+- Полный verify перед тегом: 62 Rust-теста, 22 pytest / 0 xfailed, UI typecheck/build, guard clean.
+- GitHub Release `v0.2.1`: `TNS.Energy.Studio_0.2.1_x64-setup.exe` (8 475 181 байт), `.exe.sig`, `latest.json`; run 45155312014 success.
+- `releases/latest/download/latest.json` отдаёт 0.2.1 и URL на installer (HTTP 200); обновление с 0.2.0 — через Tauri updater.
+
 ### Срез 7 — PDF input
 **7a/7b/7c готовы:** `crates/tns-pdf` с PDFium 153.0.7999.0, векторной сеткой, детекцией блоков/футеров, 27 колонками, домами/ПУ, жёсткими инвариантами и распознаванием корректировок (`base_period`, `is_correction`). Городской PDF 82 стр. — 22 дома, `736 051,312` / `4 309 766,80`, 918 ПУ; все 5 пользовательских PDF парсятся с точными итогами. CLI `parse <pdf> --json <dir> [--xlsx <dir>]` и Tauri `process_pdf` пишут стандартные ведомости `<contract>_<Month>_<Year>[_за_<BaseMonth>_<BaseYear>].xlsx`; дубликаты получают `_2`. UI выбирает `.xlsx`/`.pdf`, фильтрует по режиму, показывает прогресс и все итоги. 26 unit-тестов; реальный PDF — ignored/CLI/live-smoke, PDF/JSON не коммитятся. PDFium DLL бандлится как Tauri resource.
 
@@ -217,7 +223,7 @@ python -m pytest tests/parity -q
 git diff --exit-code parity-harness -- legacy/pyqt tests/parity/fixtures
 ```
 
-Release (tag `v*`) выполняет `.github/workflows/release.yml`: verify, `npx @tauri-apps/cli@2 build --bundles nsis`, updater-подпись, `latest.json`, GitHub Release. Workspace-артефакты лежат в `target/release/bundle/nsis`, не в `src-tauri/target`. Подписанный релиз 0.2.0 опубликован как `v0.2.0-1`.
+Release (tag `v*`) выполняет `.github/workflows/release.yml`: verify, `npx @tauri-apps/cli@2 build --bundles nsis`, updater-подпись, `latest.json`, GitHub Release. Workspace-артефакты лежат в `target/release/bundle/nsis`, не в `src-tauri/target`. Подписанный релиз 0.2.1 опубликован как `v0.2.1`.
 
 Guard использует локальную базу `parity-harness`, потому что `origin/parity-harness` может быть устаревшим до push. В CI после push можно сравнивать с `origin/parity-harness`.
 
@@ -246,7 +252,7 @@ Guard использует локальную базу `parity-harness`, пот�
 17. **UI IPC**: payload-поля Rust остаются snake_case (`is_dir`, `preview_rows`, `history_warning`), аргументы JS — camelCase. Весь обмен — через `apps/ui/src/ipc.ts`; не возвращать моки/setTimeout. После изменения `package.json`/lock нужен `npm --prefix apps/ui ci`, иначе старые `node_modules` не увидят новые deps.
 18. **UI runtime**: typecheck/build не проверяют живое окно; перед релизом нужен smoke в Tauri (detect/process/прогресс/отмена/история/open).
 19. **Updater ключи**: `plugins.updater.pubkey` установлен (`8f9ab17`). Для релиза нужны secrets `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`; без них release job падает. `latest.json` лежит на `releases/latest/download/latest.json`.
-20. **Release workflow**: tag `v*` → NSIS installer `*-setup.exe` + `.exe.sig`; `scripts/release-latest-json.ps1` собирает `windows-x86_64` с URL на `.exe`. GitHub replaces spaces in asset names with dots; normalize the installer/sig names and latest.json URL. Authenticode после bundling инвалидирует `.exe.sig`; для полной цепочки — `bundle.windows.signCommand` до updater-подписи. Release 0.2.0 опубликован как `v0.2.0-1`; старый `v0.2.0` не содержит релиза.
+20. **Release workflow**: tag `v*` → NSIS installer `*-setup.exe` + `.exe.sig`; `scripts/release-latest-json.ps1` собирает `windows-x86_64` с URL на `.exe`. GitHub replaces spaces in asset names with dots; normalize the installer/sig names and latest.json URL. Authenticode после bundling инвалидирует `.exe.sig`; для полной цепочки — `bundle.windows.signCommand` до updater-подписи. Текущий релиз — `v0.2.1`; предыдущий `0.2.0` вышел как `v0.2.0-1`, старый тег `v0.2.0` не содержит релиза.
 21. **CI порядок**: `generate_context!` читает `apps/ui/dist` на этапе cargo, поэтому `verify.ps1` сначала делает `npm typecheck/build`, затем `cargo test/check src-tauri`; `cargo test src-tauri` включён в скрипт. После изменения lock — `npm ci`.
 22. **Release paths**: workspace target — `target/release/bundle/nsis`, не `src-tauri/target`. Tauri запускает `beforeBuildCommand` из `apps/ui`, поэтому там `npm run build`/`npm run dev`, а не `npm --prefix apps/ui`.
 23. **Updater key**: агент не может создавать/читать `.key` (safety guard). Ключ генерирует пользователь: `npx @tauri-apps/cli@2 signer generate -w $env:USERPROFILE\.tauri\tns-0.2.0.key`; pubkey уже в конфиге, осталось secrets `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`. Без этого signed updater-артефакты не собрать.

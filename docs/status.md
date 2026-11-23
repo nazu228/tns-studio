@@ -1,6 +1,6 @@
 # Статус миграции TNS Energy Studio
 
-Обновлено: 2026-11-23. Ветка: `parity-harness` (релиз 0.2.0 опубликован как `v0.2.0-1`; PDF 7a–7c готовы).
+Обновлено: 2026-11-23. Ветка: `parity-harness` (релиз `0.2.1` с PDF опубликован; 7a–7c готовы).
 
 ## Сделано
 
@@ -87,6 +87,16 @@
   `releases/latest/download/latest.json` отдаёт версию 0.2.0 и URL на installer.
   Старый тег `v0.2.0` остался без релиза и не используется.
 
+### Phase 2.1 — release 0.2.1 (PDF)
+- [x] Версия `0.2.1` в `tauri.conf.json`, `src-tauri/Cargo.toml`, UI package/subtitle;
+  `RELEASE_NOTES.md` описывает PDF-поддержку.
+- [x] Полный verify перед тегом: 62 Rust-теста, 22 pytest / 0 xfailed, UI
+  typecheck/build, guard clean.
+- [x] GitHub Release `v0.2.1` опубликован: `TNS.Energy.Studio_0.2.1_x64-setup.exe`
+  (8 475 181 байт), `.exe.sig`, `latest.json`; release run 45155312014 success.
+- [x] `releases/latest/download/latest.json` отдаёт версию 0.2.1 и URL на installer
+  (HTTP 200); пользователи 0.2.0 получают обновление через updater.
+
 ### PDF input — 7a/7b/7c (CLI и приложение)
 - [x] `crates/tns-pdf`: PDFium 153.0.7999.0, векторная сетка, детекция ведомостей,
   27 колонок, дома/ПУ, жёсткие инварианты; городской PDF 82 стр. — 22 дома,
@@ -124,7 +134,9 @@
 | `cargo build --manifest-path crates/tns-parity/Cargo.toml` | ok |
 | `.\scripts\verify.ps1 -RequireRustOutput` | All checks passed |
 | `scripts/release-latest-json.ps1` | проверен на dummy installer `.exe`/`.sig` |
-| `.github/workflows/release.yml` | run 44471114550 success: verify, NSIS, `.exe.sig`, `latest.json`, GitHub Release |
+| `.github/workflows/release.yml` (0.2.0) | run 44471114550 success: verify, NSIS, `.exe.sig`, `latest.json`, GitHub Release |
+| `.github/workflows/release.yml` (0.2.1) | run 45155312014 success: verify, NSIS, `.exe.sig`, `latest.json`, GitHub Release |
+| release build 0.2.1 | `TNS.Energy.Studio_0.2.1_x64-setup.exe` (8 475 181 байт), installer URL HTTP 200 |
 | live Tauri smoke (WebView2 CDP) | UI loaded; detect/process/results/history/backup ok |
 | release build (unsigned NSIS) | `TNS Energy Studio_0.2.0_x64-setup.exe`, CDP smoke ok |
 | `npm --prefix apps/ui ci` | ok (26 packages, lock sync) |
@@ -156,8 +168,8 @@
   `history_warning`, не Err.
 - Tauri IPC: аргументы в JS camelCase (`sourcePath`, `outputDir`, `customFilename`);
   событие прогресса — `process-progress` с `{percent, message}`.
-- Updater `pubkey` установлен (`8f9ab17`), secrets добавлены, release workflow
-  успешно собрал `*-setup.exe` + `.exe.sig`; GitHub Release `v0.2.0-1` опубликован.
+- Updater `pubkey` установлен (`8f9ab17`), secrets добавлены; текущий релиз —
+  GitHub Release `v0.2.1` (PDF), `latest.json` отдаёт 0.2.1.
 - GitHub CDN для `releases/latest/download/latest.json` может отдавать старую
   версию несколько минут после замены asset; проверять с cache-buster или после
   истечения кеша. URL installer в `latest.json` использует точки вместо пробелов,
@@ -181,7 +193,7 @@
 
 ## Следующие шаги
 
-1. Ручной smoke native file dialog, live-отмены и `open_file`/`open_folder` на release-сборке.
+1. Ручной smoke native file dialog, live-отмены и `open_file`/`open_folder` на release-сборке 0.2.1.
 2. Проверить обновление с предыдущей версии через `latest.json`.
 3. Финальный critic и визуальная приёмка на release-сборке.
 4. При желании удалить старый тег `v0.2.0` вручную; агент не может удалять теги.
