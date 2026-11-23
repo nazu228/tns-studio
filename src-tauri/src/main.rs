@@ -531,12 +531,25 @@ async fn update_check(app: tauri::AppHandle) -> Result<serde_json::Value, String
 }
 
 fn configure_pdfium(app: &tauri::AppHandle) {
-    // Bundled builds ship pdfium.dll as a Tauri resource; `cargo run` and
-    // `cargo test` fall back to the vendored copy in the workspace.
+    // Bundled builds ship pdfium.dll as a Tauri resource (the relative path from
+    // the project root is preserved: `_up_\crates\tns-pdf\vendor\pdfium.dll`);
+    // `cargo run` and `cargo test` fall back to the vendored copy in the workspace.
     if let Ok(resource_dir) = app.path().resource_dir() {
-        let library = resource_dir.join("pdfium.dll");
-        if library.is_file() {
-            std::env::set_var("PDFIUM_DYNAMIC_LIB_PATH", &library);
+        // NSIS preserves the source-relative path from tauri.conf.json.
+        let bundled = resource_dir
+            .join("_up_")
+            .join("crates")
+            .join("tns-pdf")
+            .join("vendor")
+            .join("pdfium.dll");
+        if bundled.is_file() {
+            std::env::set_var("PDFIUM_DYNAMIC_LIB_PATH", &bundled);
+            return;
+        }
+        // Some bundle types flatten resources into the resource root.
+        let flat = resource_dir.join("pdfium.dll");
+        if flat.is_file() {
+            std::env::set_var("PDFIUM_DYNAMIC_LIB_PATH", &flat);
             return;
         }
     }
