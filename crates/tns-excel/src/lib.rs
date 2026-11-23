@@ -10,13 +10,13 @@ use chrono::Local;
 use std::fmt;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use umya_spreadsheet::{reader, writer};
 pub use umya_spreadsheet::{
     new_file, Alignment, Border, Color, ConditionalFormatValues, ConditionalFormatting,
     ConditionalFormattingOperatorValues, ConditionalFormattingRule, Fill, Font, Formula,
     HorizontalAlignmentValues, Hyperlink, NumberingFormat, PatternFill, PatternValues,
     SequenceOfReferences, Style, VerticalAlignmentValues, Workbook, Worksheet,
 };
+use umya_spreadsheet::{reader, writer};
 
 #[derive(Debug)]
 pub enum ExcelError {
@@ -147,6 +147,72 @@ fn mark_inline_string(xml: &str, coordinate: &str) -> String {
     out.push_str(" t=\"inlineStr\"");
     out.push_str(&xml[end..]);
     out
+}
+
+/// umya can write a `styles.xml` without the default `cellStyleXfs`/`cellStyles`
+/// entries when a workbook was created from scratch. openpyxl then warns about
+/// a missing default style and Excel may repair the file. Insert the standard
+/// `Normal` style entries when they are absent.
+fn default_cell_styles(xml: &str) -> String {
+    let mut out = xml.to_string();
+    if !out.contains("<cellStyleXfs") {
+        const CELL_STYLE_XFS: &str = concat!(
+            r#"<cellStyleXfs count="1">"#,
+            r#"<xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>"#,
+            r#"</cellStyleXfs>"#
+        );
+        if let Some(index) = out.find("<cellXfs") {
+            out.insert_str(index, CELL_STYLE_XFS);
+        }
+    }
+    if !out.contains("<cellStyles") {
+        const CELL_STYLES: &str = concat!(
+            r#"<cellStyles count="1">"#,
+            r#"<cellStyle name="Normal" xfId="0" builtinId="0"/>"#,
+            r#"</cellStyles>"#
+        );
+        if let Some(index) = out.find("<dxfs") {
+            out.insert_str(index, CELL_STYLES);
+        } else if let Some(index) = out.rfind("</styleSheet>") {
+            out.insert_str(index, CELL_STYLES);
+        }
+    }
+    out
+}
+
+/// Ensure a written workbook carries the default `Normal` cell style entries.
+pub fn ensure_default_cell_styles(path: impl AsRef<Path>) -> ExcelResult<()> {
+    let path = path.as_ref();
+    let file = std::fs::File::open(path)?;
+    let mut archive = zip::ZipArchive::new(file).map_err(zip_error)?;
+    let temp = path.with_extension("tns-default-style.tmp");
+    let mut writer = zip::ZipWriter::new(std::fs::File::create(&temp)?);
+    let mut rewritten = false;
+
+    for index in 0..archive.len() {
+        let mut entry = archive.by_index(index).map_err(zip_error)?;
+        let name = entry.name().to_string();
+        if name == "xl/styles.xml" {
+            let mut xml = String::new();
+            entry.read_to_string(&mut xml)?;
+            let cleaned = default_cell_styles(&xml);
+            rewritten = true;
+            writer
+                .start_file(name, zip::write::SimpleFileOptions::default())
+                .map_err(zip_error)?;
+            writer.write_all(cleaned.as_bytes())?;
+        } else {
+            writer.raw_copy_file(entry).map_err(zip_error)?;
+        }
+    }
+
+    writer.finish().map_err(zip_error)?;
+    if rewritten {
+        std::fs::rename(&temp, path)?;
+    } else {
+        std::fs::remove_file(&temp)?;
+    }
+    Ok(())
 }
 
 fn sheet_index(name: &str) -> Option<usize> {
@@ -323,5 +389,35 @@ mod tests {
 
         assert!(cleaned.contains(r#"<c r="A8" s="14" t="inlineStr"/>"#));
         assert!(cleaned.contains(r#"<c r="B8" s="15" t="inlineStr"><is><t>x</t></is></c>"#));
+    }
+
+    #[test]
+    fn inserts_default_cell_styles_before_cell_xfs_and_dxfs() {
+        let xml = r#"<styleSheet><fonts/><fills/><borders/><cellXfs/><dxfs/></styleSheet>"#;
+        let cleaned = default_cell_styles(xml);
+
+        assert!(cleaned.contains(r#"<cellStyleXfs count="1">"#));
+        assert!(cleaned.contains(r#"<cellStyle name="Normal" xfId="0" builtinId="0"/>"#));
+        assert!(cleaned.find("<cellStyleXfs").unwrap() < cleaned.find("<cellXfs").unwrap());
+        assert!(cleaned.find("<cellStyles").unwrap() < cleaned.find("<dxfs").unwrap());
+    }
+
+    #[test]
+    fn ensures_default_cell_styles_in_written_workbook() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let target = dir.path().join("new.xlsx");
+        write(&new_file(), &target).expect("write");
+        ensure_default_cell_styles(&target).expect("ensure defaults");
+
+        let file = std::fs::File::open(&target).expect("open");
+        let mut archive = zip::ZipArchive::new(file).expect("zip");
+        let mut xml = String::new();
+        archive
+            .by_name("xl/styles.xml")
+            .expect("styles")
+            .read_to_string(&mut xml)
+            .expect("read styles");
+        assert!(xml.contains("<cellStyleXfs"));
+        assert!(xml.contains("<cellStyles"));
     }
 }
