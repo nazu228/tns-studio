@@ -1,8 +1,8 @@
 {
   "Cargo.toml": {
-    "mtime": 1794894054.2066455,
-    "seen": 1794984651.866154,
-    "ast_hash": "e23a4b8d14825f2bbe78a6297ae67184",
+    "mtime": 1795420679.2362537,
+    "seen": 1795422368.7106245,
+    "ast_hash": "3286fce5abac4476c0d579e0a8babdb4",
     "semantic_hash": ""
   },
   "apps/ui/package.json": {
@@ -174,9 +174,9 @@
     "semantic_hash": ""
   },
   "scripts/verify.ps1": {
-    "mtime": 1794988655.8941605,
-    "seen": 1794998659.4306724,
-    "ast_hash": "5a052caf6f1d9403780fc6d002e2f66d",
+    "mtime": 1795422227.2039733,
+    "seen": 1795422368.7107048,
+    "ast_hash": "ceedba0816d07cda969abc1a4150d372",
     "semantic_hash": ""
   },
   "src-tauri/Cargo.toml": {
@@ -222,9 +222,9 @@
     "semantic_hash": ""
   },
   "src-tauri/tauri.conf.json": {
-    "mtime": 1794998033.1723056,
-    "seen": 1794998659.4306867,
-    "ast_hash": "c3dbdd2ec44de06b8ebb33222e6b71a8",
+    "mtime": 1795065553.9316318,
+    "seen": 1795422368.7107213,
+    "ast_hash": "ff63cbd55a5d4c1421a117283d4e7868",
     "semantic_hash": ""
   },
   "tests/parity/conftest.py": {
@@ -294,9 +294,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1794998584.681106,
-    "seen": 1794998659.4307125,
-    "ast_hash": "a850893d35a6a5b1ebf117b1c9e8725f",
+    "mtime": 1795422287.304364,
+    "seen": 1795422368.7107475,
+    "ast_hash": "b8fd5b864422909b22a9b39a58fe610a",
     "semantic_hash": ""
   },
   "apps/ui/index.html": {
@@ -324,9 +324,9 @@
     "semantic_hash": ""
   },
   "docs/status.md": {
-    "mtime": 1794998516.8442276,
-    "seen": 1794998659.430725,
-    "ast_hash": "ee9f85d31805e4ae46a390f4868dfc1a",
+    "mtime": 1795422287.3241463,
+    "seen": 1795422368.7107863,
+    "ast_hash": "a69d2b49de363ade43f84ed49583bbb7",
     "semantic_hash": ""
   },
   "graphify-out/converted/dom_april_2026_394e4478.md": {
@@ -468,15 +468,15 @@
     "semantic_hash": ""
   },
   "DECISIONS.md": {
-    "mtime": 1794998561.1574643,
-    "seen": 1794998659.4307113,
-    "ast_hash": "c5ff2149694102a503685eb8c1146399",
+    "mtime": 1795422335.7674623,
+    "seen": 1795422368.7107456,
+    "ast_hash": "695b2117d5fc7821877a00b2e8bc210b",
     "semantic_hash": ""
   },
   "docs/HANDOFF_PROMPT.md": {
-    "mtime": 1794998545.6261868,
-    "seen": 1794998659.4307184,
-    "ast_hash": "6fd91200ce8ae2779a26feec35eb5e5e",
+    "mtime": 1795422317.6978457,
+    "seen": 1795422368.7107794,
+    "ast_hash": "e284f4f8702c8c8ac8601d88db08f895",
     "semantic_hash": ""
   },
   "crates/tns-core/src/output_style.rs": {
@@ -498,27 +498,189 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1794988655.8670733,
-    "seen": 1794998659.4305935,
-    "ast_hash": "f56aa494da28977936d77d539e6e32bd",
+    "mtime": 1795066280.0360136,
+    "seen": 1795422368.7106135,
+    "ast_hash": "637343c7510243a2f5993b12a838535a",
     "semantic_hash": ""
   },
   ".github/workflows/release.yml": {
-    "mtime": 1794998584.6940694,
-    "seen": 1794998659.4306011,
-    "ast_hash": "8c633be81e937d5dc1206ff1f1a65eda",
+    "mtime": 1795070001.21126,
+    "seen": 1795422368.7106206,
+    "ast_hash": "5479046d411bd1b2b955da723a218377",
     "semantic_hash": ""
   },
   "scripts/release-latest-json.ps1": {
-    "mtime": 1794988655.893798,
-    "seen": 1794998659.4306707,
-    "ast_hash": "8a22a9057c197577a8b96d345cf8abf1",
+    "mtime": 1795070001.21126,
+    "seen": 1795422368.7107034,
+    "ast_hash": "653c7b07037aa94383c2a9aa46bc0c3f",
     "semantic_hash": ""
   },
   "RELEASE_NOTES.md": {
-    "mtime": 1794997989.943204,
-    "seen": 1794998659.4307148,
-    "ast_hash": "fbdc6988078fb14274169984c9e74352",
+    "mtime": 1795070165.354709,
+    "seen": 1795422368.7107487,
+    "ast_hash": "2ea6a40e6c1e08f2845f3283751cf449",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/Cargo.toml": {
+    "mtime": 1795420675.2111404,
+    "seen": 1795422368.7106683,
+    "ast_hash": "594c565b5d5b71abf042eddf23ead3c8",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/src/layout.rs": {
+    "mtime": 1795421821.2592638,
+    "seen": 1795422368.71067,
+    "ast_hash": "8ef76ab742fcf143c953598605d491de",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/src/lib.rs": {
+    "mtime": 1795421558.467829,
+    "seen": 1795422368.7106717,
+    "ast_hash": "52fbd2677ed5bec43f46a796256b9b86",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/src/main.rs": {
+    "mtime": 1795421891.7201557,
+    "seen": 1795422368.7106733,
+    "ast_hash": "f22ff716cf2b5354736f2072976911b9",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/src/model.rs": {
+    "mtime": 1795421924.0904782,
+    "seen": 1795422368.7106748,
+    "ast_hash": "14bfbed18277f8c51f4de41c64eb23ca",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/src/parse.rs": {
+    "mtime": 1795422026.8450541,
+    "seen": 1795422368.7106762,
+    "ast_hash": "c9d4799f3377e7d49f3c7cd4b44df81e",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/src/pdfium.rs": {
+    "mtime": 1795421829.2765195,
+    "seen": 1795422368.7106774,
+    "ast_hash": "a2e8ad0359d94b96ff26f752a68aa132",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/src/text.rs": {
+    "mtime": 1795421372.493121,
+    "seen": 1795422368.710679,
+    "ast_hash": "272a113ae82fc4ca42926a4a35bbab54",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/README.md": {
+    "mtime": 1795420675.2111404,
+    "seen": 1795422368.7107518,
+    "ast_hash": "8be89cd7e755ca2b6ae793b114d2ecfe",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/LICENSES/Apache-2.0.txt": {
+    "mtime": 1788760751.1803493,
+    "seen": 1795422368.7107532,
+    "ast_hash": "d273d63619c9aeaf15cdaf76422c4f87",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/LICENSES/BSD-3-Clause.txt": {
+    "mtime": 1788760751.1808572,
+    "seen": 1795422368.7107549,
+    "ast_hash": "a7a92a900d9f46bb755efbbd818c0ecf",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/LICENSES/CC-BY-4.0.txt": {
+    "mtime": 1788760751.1819193,
+    "seen": 1795422368.710756,
+    "ast_hash": "e20cab5e3f9e0285055e11c575862094",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/data/windows_x64/BUILD_LICENSES/abseil.txt": {
+    "mtime": 1788760751.182968,
+    "seen": 1795422368.7107577,
+    "ast_hash": "ef6001073aaa9700eb7ea7a190e4503d",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/data/windows_x64/BUILD_LICENSES/agg23.txt": {
+    "mtime": 1788760751.182968,
+    "seen": 1795422368.710759,
+    "ast_hash": "371d7d546661f84bdc1901232bf732e2",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/data/windows_x64/BUILD_LICENSES/fast_float.txt": {
+    "mtime": 1788760751.1834798,
+    "seen": 1795422368.7107604,
+    "ast_hash": "90eb985182c5a5c659f13a0107c645b6",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/data/windows_x64/BUILD_LICENSES/freetype.txt": {
+    "mtime": 1788760751.18399,
+    "seen": 1795422368.710762,
+    "ast_hash": "d479e83797f699fe873b38dadd0fcd4c",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/data/windows_x64/BUILD_LICENSES/icu.txt": {
+    "mtime": 1788760751.1845005,
+    "seen": 1795422368.7107635,
+    "ast_hash": "d43d9e2c72094405199a6665f1960d89",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/data/windows_x64/BUILD_LICENSES/lcms.txt": {
+    "mtime": 1788760751.1845005,
+    "seen": 1795422368.710765,
+    "ast_hash": "9732deda34ad7db3ca109b28b271cab9",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/data/windows_x64/BUILD_LICENSES/libjpeg_turbo.md": {
+    "mtime": 1788760751.1855204,
+    "seen": 1795422368.7107663,
+    "ast_hash": "7e2d69823090c2efd606f45bd016928a",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/data/windows_x64/BUILD_LICENSES/libopenjpeg.txt": {
+    "mtime": 1788760751.186029,
+    "seen": 1795422368.710768,
+    "ast_hash": "42ee5e99ea000f1c8d771e367d7337a1",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/data/windows_x64/BUILD_LICENSES/libpng.txt": {
+    "mtime": 1788760751.186029,
+    "seen": 1795422368.7107692,
+    "ast_hash": "c833fae7def23568f9799a79e9bd1e7b",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/data/windows_x64/BUILD_LICENSES/libtiff.txt": {
+    "mtime": 1788760751.1865492,
+    "seen": 1795422368.7107706,
+    "ast_hash": "128410f2034d7b026859b3c951cc7a34",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/data/windows_x64/BUILD_LICENSES/llvm-libc.txt": {
+    "mtime": 1788760751.18707,
+    "seen": 1795422368.7107723,
+    "ast_hash": "c56ceb9fc764bd7f1d63f60437255373",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/data/windows_x64/BUILD_LICENSES/pdfium-binaries.txt": {
+    "mtime": 1788760751.1875837,
+    "seen": 1795422368.7107735,
+    "ast_hash": "3129547aada74e17210127b796b1ea5f",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/data/windows_x64/BUILD_LICENSES/pdfium.txt": {
+    "mtime": 1788760751.188096,
+    "seen": 1795422368.7107751,
+    "ast_hash": "685f4c429c248b58b0ea2d5c281701fe",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/data/windows_x64/BUILD_LICENSES/simdutf.txt": {
+    "mtime": 1788760751.188096,
+    "seen": 1795422368.7107763,
+    "ast_hash": "d17f2020e9433fffb94c9a722bcee0d8",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/vendor/licenses/data/windows_x64/BUILD_LICENSES/zlib.txt": {
+    "mtime": 1788760751.1886106,
+    "seen": 1795422368.7107778,
+    "ast_hash": "957e999c125199d4fa154f8f1bf2bb61",
     "semantic_hash": ""
   },
   "apps/ui/package-lock.json": {
