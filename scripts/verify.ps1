@@ -36,6 +36,7 @@ try {
     Invoke-Step "cargo test tns-core" { cargo test --manifest-path crates/tns-core/Cargo.toml }
     Invoke-Step "cargo test tns-db" { cargo test --manifest-path crates/tns-db/Cargo.toml }
     Invoke-Step "cargo test tns-excel" { cargo test --manifest-path crates/tns-excel/Cargo.toml }
+    Invoke-Step "cargo test tns-pdf" { cargo test -p tns-pdf }
     Invoke-Step "cargo test src-tauri" { cargo test --manifest-path src-tauri/Cargo.toml }
     Invoke-Step "cargo check src-tauri" { cargo check --manifest-path src-tauri/Cargo.toml }
     Invoke-Step "cargo build tns-parity" { cargo build --manifest-path crates/tns-parity/Cargo.toml }
