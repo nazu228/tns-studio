@@ -208,6 +208,6 @@
 
 **Why:** the signing key, secrets and release workflow are already proven by 0.2.0; a normal tag is the intended release path and keeps the updater chain intact.
 
-**Consequence:** GitHub Release `v0.2.1` published `TNS.Energy.Studio_0.2.1_x64-setup.exe` (8 475 181 bytes), `.exe.sig` and `latest.json` (run 45155312014 success); `releases/latest/download/latest.json` serves 0.2.1 with a valid installer URL, so installed 0.2.0 apps update through the Tauri updater. The stale `v0.2.0` tag still needs manual deletion; local desktop copies stay on 0.2.0 until updated.
+**Consequence:** GitHub Release `v0.2.1` published `TNS.Energy.Studio_0.2.1_x64-setup.exe` (8 475 181 bytes), `.exe.sig` and `latest.json` (run 45155312014 success); `releases/latest/download/latest.json` serves 0.2.1 with a valid installer URL. Installed 0.2.0 apps update by running the 0.2.1 installer; the updater manifest is ready, but the UI does not call `update_check` yet, so there is no in-app update button. The stale `v0.2.0` tag still needs manual deletion.
 
 **Tried and rejected:** replacing only the local installed exe (would diverge from the published updater release); reworking the release workflow for this tag (not needed).

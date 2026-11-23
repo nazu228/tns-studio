@@ -172,7 +172,7 @@ tns-studio/
 - Версия `0.2.1` в `tauri.conf.json`, `src-tauri/Cargo.toml`, UI package/subtitle; `RELEASE_NOTES.md` под PDF.
 - Полный verify перед тегом: 62 Rust-теста, 22 pytest / 0 xfailed, UI typecheck/build, guard clean.
 - GitHub Release `v0.2.1`: `TNS.Energy.Studio_0.2.1_x64-setup.exe` (8 475 181 байт), `.exe.sig`, `latest.json`; run 45155312014 success.
-- `releases/latest/download/latest.json` отдаёт 0.2.1 и URL на installer (HTTP 200); обновление с 0.2.0 — через Tauri updater.
+- `releases/latest/download/latest.json` отдаёт 0.2.1 и URL на installer (HTTP 200); установленная 0.2.0 обновляется запуском нового установщика — кнопки проверки обновлений в UI пока нет.
 
 ### Срез 7 — PDF input
 **7a/7b/7c готовы:** `crates/tns-pdf` с PDFium 153.0.7999.0, векторной сеткой, детекцией блоков/футеров, 27 колонками, домами/ПУ, жёсткими инвариантами и распознаванием корректировок (`base_period`, `is_correction`). Городской PDF 82 стр. — 22 дома, `736 051,312` / `4 309 766,80`, 918 ПУ; все 5 пользовательских PDF парсятся с точными итогами. CLI `parse <pdf> --json <dir> [--xlsx <dir>]` и Tauri `process_pdf` пишут стандартные ведомости `<contract>_<Month>_<Year>[_за_<BaseMonth>_<BaseYear>].xlsx`; дубликаты получают `_2`. UI выбирает `.xlsx`/`.pdf`, фильтрует по режиму, показывает прогресс и все итоги. 26 unit-тестов; реальный PDF — ignored/CLI/live-smoke, PDF/JSON не коммитятся. PDFium DLL бандлится как Tauri resource.

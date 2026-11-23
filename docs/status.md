@@ -95,7 +95,8 @@
 - [x] GitHub Release `v0.2.1` опубликован: `TNS.Energy.Studio_0.2.1_x64-setup.exe`
   (8 475 181 байт), `.exe.sig`, `latest.json`; release run 45155312014 success.
 - [x] `releases/latest/download/latest.json` отдаёт версию 0.2.1 и URL на installer
-  (HTTP 200); пользователи 0.2.0 получают обновление через updater.
+  (HTTP 200); установленная 0.2.0 обновляется запуском нового установщика —
+  кнопки проверки обновлений в UI пока нет.
 
 ### PDF input — 7a/7b/7c (CLI и приложение)
 - [x] `crates/tns-pdf`: PDFium 153.0.7999.0, векторная сетка, детекция ведомостей,
