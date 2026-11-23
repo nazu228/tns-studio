@@ -187,3 +187,15 @@
 **Consequence:** the CLI supports `--xlsx` and produces standard workbooks for all five user PDFs with exact official totals (736051.312 / 1032745.77 / 137107.602 / 223073.372). PDFium control characters are stripped before writing and the synthetic source receives the default `Normal` cell style via `tns-excel::ensure_default_cell_styles`; without those steps openpyxl/Excel treat the file as damaged. Tauri/UI still cannot select PDFs (7c).
 
 **Tried and rejected:** a separate PDF-specific writer (would fork the golden-verified output); keeping raw PDF control characters (invalid XML in sharedStrings); shipping the synthetic workbook without default cell styles (openpyxl warning, Excel repair risk).
+
+## 2026-11-23 — PDF processing is one Tauri command that reuses the workbook writer
+
+**Context:** slice 7c must expose the PDF parser in the desktop app without forking progress, cancellation, naming or the SQLite history logic that already exists for xlsx statements.
+
+**Decision:** `src-tauri` exposes `process_pdf(sourcePath, outputDir, mode)`. It runs `tns_pdf::parse_pdf` in `spawn_blocking`, filters statements by `dom`/`gorod`/`both`, writes each statement with `write_statement_xlsx_with` (progress + cancel forwarded) and records every result through the same `record_history` helper. `detect_statement` lists `.pdf` files with `kind: "pdf"` by extension only, so folder detection stays fast; real statement detection happens during processing. `tauri.conf.json` bundles the vendored `pdfium.dll` as a resource and `configure_pdfium` falls back to `crates/tns-pdf/vendor` for dev/test.
+
+**Why:** one command keeps xlsx and PDF inputs on the same golden-verified writer, the same progress event and the same history schema; the UI only routes by file extension.
+
+**Consequence:** the UI accepts `.xlsx` and `.pdf`, shows all generated statements in the status line and keeps the latest result per organization in the tabs. Live CDP smoke: a dom PDF produced 3 houses / 137107.602, a 226-page combined PDF produced two statements (736051.312 and 1032745.77) with both files and history rows. PDFium calls stay sequential and the parser still rejects scans/unknown layouts.
+
+**Tried and rejected:** detecting PDF statements during folder selection (would parse hundreds of pages just to show a hint); a PDF-specific writer or history path (would fork parity); copying the DLL next to the debug exe instead of a bundled resource (not reproducible in releases).

@@ -62,11 +62,11 @@ TNS Energy Studio — Windows-приложение для обработки в�
 | `crates/tns-core` | `normalize_header`, `row_type`, `safe_float`, `numeric_value`, `classify_zone`, `total_row`, `resolve_layout`, `extract_metadata`, `detect_statement_type`, `process_statement` (парсинг/итоги/result/прогресс/отмена) | **16 passed** |
 | `crates/tns-core` output writer | срез 1+2: «Ведомость ЭП» + «Сводка по домам», формулы/merge/freeze/размеры/стили/CF/hyperlink/`safe_save` | full xlsx-golden 0 diffs на 3 фикстурах |
 | `crates/tns-db` | Схема legacy, seed, история, upsert домов, локальный бэкап, валидация | **4 passed** |
-| `src-tauri` | Tauri 2 shell, окно 1280×880, 9 команд; real `detect_statement`/`process_statement` (+cancel), progress, SQLite history/houses, dialog+updater plugins | **7 passed**, `cargo check` ok |
-| `apps/ui` | React/Vite главное окно TNS, design parity; реальный Tauri IPC (`ipc.ts`), detect/process/progress/cancel/history/backup/open; моков и `setTimeout` нет | `typecheck` + `build` ok; full verify passed |
-| `crates/tns-pdf` | PDFium 153.0.7999.0, векторная сетка, инварианты, корректировки; CLI `parse --json/--xlsx` пишет стандартные ведомости | **25 passed, 2 ignored** |
+| `src-tauri` | Tauri 2 shell, окно 1280×880, 10 команд; real `detect_statement`/`process_statement`/`process_pdf` (+cancel), progress, SQLite history/houses, dialog+updater plugins, PDFium resource | **9 passed, 1 ignored**, `cargo check` ok |
+| `apps/ui` | React/Vite главное окно TNS, design parity; реальный Tauri IPC (`ipc.ts`), detect/process (xlsx+PDF)/progress/cancel/history/backup/open; моков и `setTimeout` нет | `typecheck` + `build` ok; full verify passed |
+| `crates/tns-pdf` | PDFium 153.0.7999.0, векторная сетка, инварианты, корректировки; CLI `parse --json/--xlsx` и Tauri `process_pdf` пишут стандартные ведомости | **26 passed, 2 ignored** |
 
-Итого **59 Rust-тестов** (core 16, db 4, excel 7, tauri 7, pdf 25) и **22 pytest passed, 0 xfailed**. `process_statement` совпадает с golden по `result` на dom/gorod; writer совпадает по полному xlsx-сигналу на всех 3 фикстурах, включая стили/CF/hyperlink; Tauri-команды detect/process покрыты тестами на фикстурах и пишут историю в SQLite; UI вызывает их через `ipc.ts`, моков нет. PDF-парсер 7a/7b распознаёт ведомости/корректировки и через CLI пишет стандартные xlsx по договору; Tauri/UI ещё не подключены (7c).
+Итого **62 Rust-теста** (core 16, db 4, excel 7, tauri 9, pdf 26) и **22 pytest passed, 0 xfailed**. `process_statement` совпадает с golden по `result` на dom/gorod; writer совпадает по полному xlsx-сигналу на всех 3 фикстурах, включая стили/CF/hyperlink; Tauri-команды detect/process покрыты тестами на фикстурах и пишут историю в SQLite; UI вызывает их через `ipc.ts`, моков нет. PDF-парсер 7a–7c распознаёт ведомости/корректировки, CLI и приложение пишут стандартные xlsx по договору; live-smoke проверил одиночный и multi-statement PDF.
 
 ### Чего ещё нет
 
@@ -169,8 +169,7 @@ tns-studio/
 - **Опубликовано:** GitHub Release `v0.2.0-1` (installer + `.exe.sig` + `latest.json`); release workflow run 44471114550 успешен. Старый тег `v0.2.0` не содержит релиза; удаление тега — вручную.
 
 ### Срез 7 — PDF input
-**7a/7b готовы:** `crates/tns-pdf` с PDFium 153.0.7999.0, векторной сеткой, детекцией блоков/футеров, 27 колонками, домами/ПУ, жёсткими инвариантами и распознаванием корректировок (`base_period`, `is_correction`). Городской PDF 82 стр. — 22 дома, `736 051,312` / `4 309 766,80`, 918 ПУ; все 5 пользовательских PDF парсятся с точными итогами. CLI `parse <pdf> --json <dir> [--xlsx <dir>]` пишет стандартные ведомости `<contract>_<Month>_<Year>[_за_<BaseMonth>_<BaseYear>].xlsx`; дубликаты получают `_2`. 25 unit-тестов; реальный PDF — ignored/CLI, PDF/JSON не коммитятся.
-**Следующее:** 7c — UI PDF-файл/папка, несколько результатов, прогресс/ошибки. Парсер пока не подключён к Tauri/UI.
+**7a/7b/7c готовы:** `crates/tns-pdf` с PDFium 153.0.7999.0, векторной сеткой, детекцией блоков/футеров, 27 колонками, домами/ПУ, жёсткими инвариантами и распознаванием корректировок (`base_period`, `is_correction`). Городской PDF 82 стр. — 22 дома, `736 051,312` / `4 309 766,80`, 918 ПУ; все 5 пользовательских PDF парсятся с точными итогами. CLI `parse <pdf> --json <dir> [--xlsx <dir>]` и Tauri `process_pdf` пишут стандартные ведомости `<contract>_<Month>_<Year>[_за_<BaseMonth>_<BaseYear>].xlsx`; дубликаты получают `_2`. UI выбирает `.xlsx`/`.pdf`, фильтрует по режиму, показывает прогресс и все итоги. 26 unit-тестов; реальный PDF — ignored/CLI/live-smoke, PDF/JSON не коммитятся. PDFium DLL бандлится как Tauri resource.
 
 ---
 
@@ -280,9 +279,8 @@ graphify update .          # после изменений кода, без LLM
 ## 11. Первый шаг нового чата
 
 1. Прочитай `docs/HANDOFF_PROMPT.md`, `docs/status.md`, `graphify-out/GRAPH_REPORT.md`.
-2. Обнови UI-зависимости (`npm --prefix apps/ui ci`, если менялся lock) и запусти `.\scripts\verify.ps1 -RequireRustOutput` — база: 59 Rust-тестов, 22 pytest passed / 0 xfailed, UI typecheck/build.
-3. PDF 7c: подключить `tns-pdf` к Tauri/UI — файл/папка, несколько результатов, прогресс/ошибки; CLI `--xlsx` уже работает.
-4. Ручной smoke native dialog, live-отмены и `open_file`/`open_folder` на release-сборке. Старый тег `v0.2.0` удаляется вручную, если нужен чистый список тегов.
-5. После правок кода — `graphify update .`; финальный gate — `.\scripts\verify.ps1 -RequireRustOutput`.
+2. Обнови UI-зависимости (`npm --prefix apps/ui ci`, если менялся lock) и запусти `.\scripts\verify.ps1 -RequireRustOutput` — база: 62 Rust-теста, 22 pytest passed / 0 xfailed, UI typecheck/build.
+3. Ручной smoke native dialog, live-отмены и `open_file`/`open_folder` на release-сборке (PDF уже работает в CLI и UI). Старый тег `v0.2.0` удаляется вручную, если нужен чистый список тегов.
+4. После правок кода — `graphify update .`; финальный gate — `.\scripts\verify.ps1 -RequireRustOutput`.
 
 **Цель**: TNS Energy Studio, полностью работающая на Rust + React + Tauri, с golden-паритетом, локальными данными и GitHub-обновлениями.

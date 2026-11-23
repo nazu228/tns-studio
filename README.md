@@ -18,14 +18,14 @@ TNS Energy Studio — десктопное приложение для обра�
 - `crates/tns-core` — `process_statement` совпадает с golden по result и по
   полной xlsx-сигнатуре (значения, формулы, merge, freeze, стили, CF, hyperlink).
 - `crates/tns-db` — локальная SQLite: история, дома, тарифы, бэкап.
-- `crates/tns-pdf` — PDFium-парсер PDF-ведомостей (7a/7b): векторная сетка,
-  только известный layout; CLI пишет стандартные xlsx по договору;
-  в приложение пока не подключён.
-- `src-tauri` — реальные `detect_statement`/`process_statement`, прогресс
-  `process-progress`, `cancel_statement`, запись истории, updater-плагин.
-- `apps/ui` — реальный Tauri IPC вместо мока: выбор файла/папки, режимы
-  both/dom/gorod, прогресс, отмена, результаты, история, бэкап, open file/folder.
-- Проверки: **59 Rust-тестов** (core 16, db 4, excel 7, tauri 7, pdf 25) и
+- `crates/tns-pdf` — PDFium-парсер PDF-ведомостей (7a–7c): векторная сетка,
+  только известный layout; CLI и приложение пишут стандартные xlsx по договору.
+- `src-tauri` — реальные `detect_statement`/`process_statement`/`process_pdf`,
+  прогресс `process-progress`, `cancel_statement`, запись истории, updater-плагин;
+  PDFium DLL бандлится как resource.
+- `apps/ui` — реальный Tauri IPC вместо мока: выбор файла/папки (`.xlsx`/`.pdf`),
+  режимы both/dom/gorod, прогресс, отмена, результаты, история, бэкап, open file/folder.
+- Проверки: **62 Rust-теста** (core 16, db 4, excel 7, tauri 9, pdf 26) и
   **22 pytest passed / 0 xfailed**.
 - Релиз `0.2.0` опубликован как GitHub Release `v0.2.0-1`: NSIS installer,
   `.exe.sig` и `latest.json`; updater проверен через GitHub endpoint.
@@ -34,11 +34,14 @@ TNS Energy Studio — десктопное приложение для обра�
 совпадающий с golden; история и бэкап проверены. Ручная проверка нативного
 диалога выбора файла/папки и `open_file`/`open_folder` остаётся на приёмке.
 
-PDF-ведомости (пока CLI, UI — 7c):
+PDF-ведомости (CLI и приложение):
 
 ```powershell
 cargo run -p tns-pdf -- parse "<pdf>" --xlsx "<out-dir>" [--json "<out-dir>"]
 ```
+
+В приложении выбери `.pdf` как файл или папку с PDF: расчёт сам определит
+ведомости, отфильтрует по режиму и создаст отдельные xlsx.
 
 Имена выходов: `<contract>_<Month>_<Year>.xlsx`, корректировки —
 `<contract>_<Month>_<Year>_за_<BaseMonth>_<BaseYear>.xlsx`; несколько ведомостей

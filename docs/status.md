@@ -1,6 +1,6 @@
 # Статус миграции TNS Energy Studio
 
-Обновлено: 2026-11-19. Ветка: `parity-harness` (релиз 0.2.0 опубликован как `v0.2.0-1`).
+Обновлено: 2026-11-23. Ветка: `parity-harness` (релиз 0.2.0 опубликован как `v0.2.0-1`; PDF 7a–7c готовы).
 
 ## Сделано
 
@@ -31,10 +31,11 @@
 - [x] `crates/tns-db` — локальная SQLite: схема legacy, seed организаций/тарифов,
   история расчётов, upsert домов, локальный бэкап, валидация. **4 passed**.
 - [x] `src-tauri` — Tauri 2 shell: окно 1280×880, иконка, `frontendDist` на
-  `apps/ui/dist`, 9 команд. `detect_statement` читает файл/папку и отдаёт
-  кандидатов; `process_statement` идёт через `spawn_blocking`, progress
+  `apps/ui/dist`, 10 команд. `detect_statement` читает файл/папку (`.xlsx`/`.pdf`)
+  и отдаёт кандидатов; `process_statement` идёт через `spawn_blocking`, progress
   `process-progress`, `cancel_statement`, запись истории/домов в SQLite;
-  `cargo test` — **7 passed**, `cargo check` ok (Tauri 2.12).
+  `process_pdf` парсит PDF и пишет стандартные ведомости с тем же прогрессом;
+  `cargo test` — **9 passed, 1 ignored** (real-PDF), `cargo check` ok (Tauri 2.12).
 - [x] Tauri dialog plugin + capabilities (`core:default`, `dialog:default`) для UI среза 4.
 - [x] `crates/tns-excel` — обёртка над `umya-spreadsheet` 3.1.1 (MIT):
   чтение/запись существующей книги, `safe_save` с атомарной заменой и
@@ -86,18 +87,24 @@
   `releases/latest/download/latest.json` отдаёт версию 0.2.0 и URL на installer.
   Старый тег `v0.2.0` остался без релиза и не используется.
 
-### PDF input — 7b (CLI пишет стандартный xlsx, UI не подключён)
+### PDF input — 7a/7b/7c (CLI и приложение)
 - [x] `crates/tns-pdf`: PDFium 153.0.7999.0, векторная сетка, детекция ведомостей,
   27 колонок, дома/ПУ, жёсткие инварианты; городской PDF 82 стр. — 22 дома,
   `736 051,312` / `4 309 766,80`, 918 ПУ. Корректировки распознают базовый период.
-- [x] 25 unit-тестов + CLI `parse <pdf> --json <dir> [--xlsx <dir>]`; JSON
+- [x] 26 unit-тестов + CLI `parse <pdf> --json <dir> [--xlsx <dir>]`; JSON
   schema_version=1; реальный PDF — через ignored-тест/CLI, PDF/JSON не коммитятся.
 - [x] 7b: `Statement` проецируется на исходный layout 1C и проходит через
   `tns_core::process_statement` — стандартные `Сводка по домам` + `Ведомость ЭП`.
   Имена `<contract>_<Month>_<Year>[_за_<BaseMonth>_<BaseYear>].xlsx`, дубликаты
   получают `_2`. Все 5 пользовательских PDF дают корректные итоги:
   736 051,312 / 1 032 745,77 / 137 107,602 / 223 073,372; openpyxl без warning.
-- [ ] 7c: UI PDF-файл/папка, несколько результатов, прогресс/ошибки.
+- [x] 7c: Tauri `process_pdf` + UI. `detect_statement` видит `.pdf` (kind `pdf`,
+  без парсинга при выборе); расчёт из UI парсит PDF, фильтрует по режиму
+  both/dom/gorod, пишет все ведомости и показывает прогресс/итоги. Live-smoke
+  через WebView2 CDP: dom PDF — 3 дома, `137 107,602`; combined 226-стр. PDF —
+  две ведомости (`736 051,312` и `1 032 745,77`), обе записи в истории,
+  выходные xlsx проверены openpyxl. PDFium DLL бандлится как Tauri resource,
+  dev/test fallback — `crates/tns-pdf/vendor`.
 
 ## Проверки
 
@@ -110,10 +117,10 @@
 | `cargo check --manifest-path crates/tns-core/Cargo.toml` | ok |
 | `cargo test --manifest-path crates/tns-core/Cargo.toml` | 16 passed |
 | `cargo test --manifest-path crates/tns-db/Cargo.toml` | 4 passed |
-| `cargo check --manifest-path src-tauri/Cargo.toml` | ok (Tauri 2.12, dialog+updater) |
-| `cargo test --manifest-path src-tauri/Cargo.toml` | 7 passed |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | ok (Tauri 2.12, dialog+updater+pdfium resource) |
+| `cargo test --manifest-path src-tauri/Cargo.toml` | 9 passed, 1 ignored (real PDF) |
 | `cargo test --manifest-path crates/tns-excel/Cargo.toml` | 7 passed |
-| `cargo test -p tns-pdf` | 25 passed, 2 ignored |
+| `cargo test -p tns-pdf` | 26 passed, 2 ignored |
 | `cargo build --manifest-path crates/tns-parity/Cargo.toml` | ok |
 | `.\scripts\verify.ps1 -RequireRustOutput` | All checks passed |
 | `scripts/release-latest-json.ps1` | проверен на dummy installer `.exe`/`.sig` |
@@ -125,7 +132,6 @@
 
 ## В работе
 
-- PDF 7c: UI PDF-файл/папка, несколько результатов, прогресс/ошибки.
 - Ручной smoke native file dialog, live-отмены и `open_file`/`open_folder` на
   release-сборке; дальнейшие релизы — обычным тегом `v*`.
 
@@ -159,11 +165,11 @@
 - Authenticode-шаг опционален и подписывает `.exe` после Tauri bundling; это
   инвалидирует `.exe.sig`. Для полной цепочки нужен `bundle.windows.signCommand`
   до updater-подписи; без сертификата шаг пропускается.
-- PDF-парсер 7a/7b работает только с iText-ведомостями, у которых есть векторная
+- PDF-парсер 7a–7c работает только с iText-ведомостями, у которых есть векторная
   сетка. Текстовый разбор без сетки даёт 20 домов вместо 22; сканы без текстового
-  слоя отклоняются. PDFium DLL 153.0.7999.0 вендорен (~7,26 МБ); CLI уже пишет
-  стандартный xlsx, но Tauri/UI ещё не подключены (7c). PDFium API не
-  потокобезопасен: парсить документы последовательно.
+  слоя отклоняются. PDFium DLL 153.0.7999.0 вендорен (~7,26 МБ) и бандлится как
+  Tauri resource; CLI и приложение (`process_pdf`) пишут стандартный xlsx.
+  PDFium API не потокобезопасен: парсить документы последовательно.
 - В PDF нет отдельной зоны ОДН; пустая зона в текущей модели попадает в `odn`
   (как в Excel-модели), поэтому прототип с `single` и текущий JSON расходятся
   только по имени зоны, не по суммам.
@@ -175,8 +181,7 @@
 
 ## Следующие шаги
 
-1. PDF 7c: UI PDF-файл/папка, несколько результатов, прогресс/ошибки.
-2. Ручной smoke native file dialog, live-отмены и `open_file`/`open_folder` на release-сборке.
-3. Проверить обновление с предыдущей версии через `latest.json`.
-5. Финальный critic и визуальная приёмка на release-сборке.
-6. При желании удалить старый тег `v0.2.0` вручную; агент не может удалять теги.
+1. Ручной smoke native file dialog, live-отмены и `open_file`/`open_folder` на release-сборке.
+2. Проверить обновление с предыдущей версии через `latest.json`.
+3. Финальный critic и визуальная приёмка на release-сборке.
+4. При желании удалить старый тег `v0.2.0` вручную; агент не может удалять теги.
