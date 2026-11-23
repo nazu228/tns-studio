@@ -1,13 +1,15 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::ExitCode;
-use tns_pdf::{parse_pdf, PdfError};
+use tns_pdf::{parse_pdf, write_statement_xlsx, xlsx_file_stem, PdfError};
 
 fn main() -> ExitCode {
     match run() {
         Ok(()) => ExitCode::SUCCESS,
         Err(Error::Cli(message)) => {
             eprintln!("{message}");
-            eprintln!("usage: tns-pdf parse <pdf> --json <out-dir>");
+            eprintln!("usage: tns-pdf parse <pdf> --json <out-dir> [--xlsx <out-dir>]");
+            eprintln!("       tns-pdf parse <pdf> --xlsx <out-dir>");
             ExitCode::from(1)
         }
         Err(Error::Pdf(error)) => {
@@ -36,40 +38,71 @@ fn run() -> Result<(), Error> {
     let input = arguments
         .next()
         .ok_or_else(|| Error::Cli("missing PDF path".to_string()))?;
-    let mut output_dir: Option<PathBuf> = None;
+    let mut json_dir: Option<PathBuf> = None;
+    let mut xlsx_dir: Option<PathBuf> = None;
     while let Some(argument) = arguments.next() {
-        if argument == "--json" {
-            let value = arguments
+        let (flag, inline_value) = match argument.split_once('=') {
+            Some((flag, value)) => (flag.to_string(), Some(value.to_string())),
+            None => (argument.clone(), None),
+        };
+        let value = match inline_value {
+            Some(value) => value,
+            None => arguments
                 .next()
-                .ok_or_else(|| Error::Cli("--json requires a directory".to_string()))?;
-            output_dir = Some(PathBuf::from(value));
-        } else if let Some(value) = argument.strip_prefix("--json=") {
-            output_dir = Some(PathBuf::from(value));
+                .ok_or_else(|| Error::Cli(format!("{flag} requires a directory")))?,
+        };
+        if flag == "--json" {
+            json_dir = Some(PathBuf::from(value));
+        } else if flag == "--xlsx" {
+            xlsx_dir = Some(PathBuf::from(value));
         } else {
             return Err(Error::Cli(format!("unknown argument: {argument}")));
         }
     }
-    let output_dir =
-        output_dir.ok_or_else(|| Error::Cli("missing --json <out-dir>".to_string()))?;
+    if json_dir.is_none() && xlsx_dir.is_none() {
+        return Err(Error::Cli(
+            "missing output: use --json <dir> and/or --xlsx <dir>".to_string(),
+        ));
+    }
     let input = PathBuf::from(input);
 
     let statements = parse_pdf(&input).map_err(Error::Pdf)?;
-    let document = if statements.len() == 1 {
-        serde_json::to_value(&statements[0])
-    } else {
-        serde_json::to_value(&statements)
-    }
-    .map_err(|error| Error::Pdf(PdfError::Io(std::io::Error::other(error))))?;
 
-    std::fs::create_dir_all(&output_dir).map_err(|error| Error::Pdf(PdfError::Io(error)))?;
-    let stem = input
-        .file_stem()
-        .map(|stem| stem.to_string_lossy().into_owned())
-        .ok_or_else(|| Error::Cli("PDF path has no file stem".to_string()))?;
-    let output_path = output_dir.join(format!("{stem}.json"));
-    let bytes = serde_json::to_vec_pretty(&document)
+    if let Some(output_dir) = json_dir.as_deref() {
+        let document = if statements.len() == 1 {
+            serde_json::to_value(&statements[0])
+        } else {
+            serde_json::to_value(&statements)
+        }
         .map_err(|error| Error::Pdf(PdfError::Io(std::io::Error::other(error))))?;
-    std::fs::write(&output_path, bytes).map_err(|error| Error::Pdf(PdfError::Io(error)))?;
-    println!("{}", output_path.display());
+        std::fs::create_dir_all(output_dir).map_err(|error| Error::Pdf(PdfError::Io(error)))?;
+        let stem = input
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().into_owned())
+            .ok_or_else(|| Error::Cli("PDF path has no file stem".to_string()))?;
+        let output_path = output_dir.join(format!("{stem}.json"));
+        let bytes = serde_json::to_vec_pretty(&document)
+            .map_err(|error| Error::Pdf(PdfError::Io(std::io::Error::other(error))))?;
+        std::fs::write(&output_path, bytes).map_err(|error| Error::Pdf(PdfError::Io(error)))?;
+        println!("{}", output_path.display());
+    }
+
+    if let Some(output_dir) = xlsx_dir.as_deref() {
+        std::fs::create_dir_all(output_dir).map_err(|error| Error::Pdf(PdfError::Io(error)))?;
+        let mut used: HashSet<String> = HashSet::new();
+        for statement in &statements {
+            let stem = xlsx_file_stem(statement).map_err(Error::Pdf)?;
+            let mut name = stem.clone();
+            let mut counter = 2;
+            while !used.insert(name.clone()) {
+                name = format!("{stem}_{counter}");
+                counter += 1;
+            }
+            let result = write_statement_xlsx(statement, output_dir, &format!("{name}.xlsx"))
+                .map_err(Error::Pdf)?;
+            println!("{}", result.target_path);
+        }
+    }
+
     Ok(())
 }

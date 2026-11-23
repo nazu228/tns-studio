@@ -9,8 +9,10 @@ pub mod model;
 pub mod parse;
 pub mod pdfium;
 pub mod text;
+pub mod xlsx;
 
 pub use parse::parse_pdf;
+pub use xlsx::{write_statement_xlsx, xlsx_file_stem};
 
 /// Crate version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

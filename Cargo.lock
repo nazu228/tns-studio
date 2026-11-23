@@ -4350,6 +4350,8 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "tns-core",
+ "tns-excel",
 ]
 
 [[package]]
