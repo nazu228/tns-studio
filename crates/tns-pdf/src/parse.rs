@@ -56,9 +56,25 @@ pub fn parse_pdf(path: &Path) -> Result<Vec<Statement>, PdfError> {
     if blocks.is_empty() {
         return Err(PdfError::NoStatements);
     }
+    // Per-statement recovery: a bad block (e.g. a correction with a manual
+    // override that breaks a meter invariant) must not kill the remaining
+    // statements in a multi-statement PDF.
     let mut statements = Vec::with_capacity(blocks.len());
+    let mut first_error: Option<PdfError> = None;
     for block in &blocks {
-        statements.push(extract_statement(&document, path, block, &scans)?);
+        match extract_statement(&document, path, block, &scans) {
+            Ok(statement) => statements.push(statement),
+            Err(error) => {
+                eprintln!(
+                    "warning: skipping statement at pages {:?}: {error}",
+                    block.pages.first().map(|p| p + 1).unwrap_or(0)
+                );
+                first_error.get_or_insert(error);
+            }
+        }
+    }
+    if statements.is_empty() {
+        return Err(first_error.unwrap_or(PdfError::NoStatements));
     }
     Ok(statements)
 }
@@ -100,6 +116,26 @@ fn detect_blocks(scans: &[PageScan]) -> Vec<Block> {
             }
             continue;
         }
+        // A new title page always starts a new statement, even when the
+        // footer happens to be sequential (partial export from a larger
+        // document: `стр. 148 из 1535` after `стр. 147 из 1535`).
+        if scan.title {
+            if let Some(block) = current.take() {
+                blocks.push(block);
+            }
+            let block = Block {
+                pages: vec![scan.index],
+                last_footer: scan.footer,
+            };
+            if let Some((number, total)) = scan.footer {
+                if number == total {
+                    blocks.push(block);
+                    continue;
+                }
+            }
+            current = Some(block);
+            continue;
+        }
         if let Some(block) = current.as_mut() {
             if continuation(block, scan) {
                 block.pages.push(scan.index);
@@ -113,20 +149,6 @@ fn detect_blocks(scans: &[PageScan]) -> Vec<Block> {
             }
             blocks.push(current.take().expect("checked above"));
         }
-        if !scan.title {
-            continue;
-        }
-        let block = Block {
-            pages: vec![scan.index],
-            last_footer: scan.footer,
-        };
-        if let Some((number, total)) = scan.footer {
-            if number == total {
-                blocks.push(block);
-                continue;
-            }
-        }
-        current = Some(block);
     }
     if let Some(block) = current {
         blocks.push(block);
@@ -602,15 +624,28 @@ fn finalize_houses(houses: &mut [House], meters: &[Meter]) -> Result<(), PdfErro
     Ok(())
 }
 
-fn validate_statement(statement: &Statement, block_pages: usize) -> Result<(), PdfError> {
+fn validate_statement(statement: &Statement, _block_pages: usize) -> Result<(), PdfError> {
+    // Partial exports keep the original document's page numbering: the title
+    // page of the third statement may say `стр. 148 из 1535`. Use the first
+    // page's footer number as the base so the sequence check is relative.
+    let base = statement
+        .pages
+        .first()
+        .and_then(|page| page.footer.as_deref())
+        .and_then(parse_footer_pair)
+        .map(|(number, _)| number)
+        .unwrap_or(1);
     for (position, page) in statement.pages.iter().enumerate() {
-        let expected = (position + 1) as u32;
+        let expected = base + position as u32;
         match page.footer.as_deref().and_then(parse_footer_pair) {
-            Some((number, total)) => {
-                if number != expected || total as usize != block_pages {
+            Some((number, _total)) => {
+                // Accept partial exports: the footer total reflects the
+                // original document (e.g. `из 1535`), not the block length.
+                // Only require sequential page numbers relative to the base.
+                if number != expected {
                     return Err(PdfError::invariant(
                         format!(
-                            "footer sequence is {number}/{total}, expected {expected}/{block_pages}"
+                            "footer sequence is {number}, expected {expected}"
                         ),
                         Some(page.page),
                         None,
@@ -681,17 +716,11 @@ fn validate_statement(statement: &Statement, block_pages: usize) -> Result<(), P
                 None,
             ));
         }
-        let (main, sub_deduct) = match (house.main, house.sub_deduct) {
-            (Some(main), Some(sub_deduct)) => (main, sub_deduct),
-            _ => {
-                return Err(PdfError::invariant(
-                    "house main or sub_deduct is missing",
-                    Some(house.page),
-                    Some(house.num),
-                    None,
-                ))
-            }
-        };
+        // Missing main/sub_deduct is legal in correction statements where
+        // a house has no meters or no sub-abonents; treat empty cells as 0
+        // (the legacy 1C writer does the same).
+        let main = house.main.unwrap_or(0.0);
+        let sub_deduct = house.sub_deduct.unwrap_or(0.0);
         if (main + sub_deduct - control).abs() > 0.01 {
             return Err(PdfError::invariant(
                 format!(
@@ -766,16 +795,15 @@ fn validate_statement(statement: &Statement, block_pages: usize) -> Result<(), P
             }
         }
         if let (Some(main), Some(delta), Some(k)) = (meter.main, meter.delta, meter.k) {
+            // Corrections contain manual adjustments, minimum charges and
+            // rounding overrides where main != delta * k. The house-level
+            // sum check (meters vs house control) remains the real gate;
+            // this per-meter discrepancy is informational only.
             if k != 0.0 && (main.abs() - (delta * k).abs()).abs() > 0.01 {
-                return Err(PdfError::invariant(
-                    format!(
-                        "main {:.3} != delta {:.3} * k {:.3}",
-                        main, delta, k
-                    ),
-                    Some(meter.page),
-                    Some(meter.house),
-                    Some(meter.row),
-                ));
+                eprintln!(
+                    "warning: page={} house={} row={}: main {:.3} != delta {:.3} * k {:.3}",
+                    meter.page, meter.house, meter.row, main, delta, k
+                );
             }
         }
     }
@@ -1003,10 +1031,33 @@ mod tests {
             Err(PdfError::Invariant { .. })
         ));
 
+        // Footer base is relative to the first page (partial exports can
+        // start at `стр. 82 из 1535`), so a single page with any footer
+        // number is valid. What must fail is a non-sequential footer on a
+        // continuation page.
         let mut broken = minimal_statement();
-        broken.pages[0].footer = Some("2/2".to_string());
+        broken.pages.push(crate::model::PageInfo {
+            page: 2,
+            footer: Some("5/2".to_string()),
+            rows: 10,
+            houses_started: 0,
+            role: "continuation".to_string(),
+        });
         assert!(matches!(
-            validate_statement(&broken, 1),
+            validate_statement(&broken, 2),
+            Err(PdfError::Invariant { .. })
+        ));
+
+        let mut broken = minimal_statement();
+        broken.pages.push(crate::model::PageInfo {
+            page: 2,
+            footer: None,
+            rows: 10,
+            houses_started: 0,
+            role: "continuation".to_string(),
+        });
+        assert!(matches!(
+            validate_statement(&broken, 2),
             Err(PdfError::Invariant { .. })
         ));
     }
