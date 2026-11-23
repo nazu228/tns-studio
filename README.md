@@ -172,7 +172,8 @@ Release notes: `RELEASE_NOTES.md` (workflow кладёт их в тело GitHub
 
 ## Handoff и карта кода
 
-- `docs/HANDOFF_PROMPT.md` — полный промпт для нового чата/агента.
+- `docs/HANDOFF_PROMPT.md` — полный промпт для нового чата/агента по TNS.
+- `docs/CHRYSAOR_HANDOFF_PROMPT.md` — промпт для миграции Chrysaor / TMZ Studio на Rust.
 - `docs/status.md` — фактический статус миграции.
 - `graphify-out/GRAPH_REPORT.md` — карта кода.
 - `graphify-out/graph.html` — интерактивная карта.
