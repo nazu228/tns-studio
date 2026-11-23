@@ -37,6 +37,7 @@
     "active": true,
     "targets": ["nsis"],
     "icon": ["icons/icon.ico", "icons/icon.png"],
+    "resources": ["../crates/tns-pdf/vendor/pdfium.dll"],
     "createUpdaterArtifacts": true
   }
 }

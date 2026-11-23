@@ -4367,6 +4367,7 @@ dependencies = [
  "tns-core",
  "tns-db",
  "tns-excel",
+ "tns-pdf",
 ]
 
 [[package]]

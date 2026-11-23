@@ -16,3 +16,4 @@ serde_json = "1"
 tns-core = { path = "../crates/tns-core" }
 tns-db = { path = "../crates/tns-db" }
 tns-excel = { path = "../crates/tns-excel" }
+tns-pdf = { path = "../crates/tns-pdf" }

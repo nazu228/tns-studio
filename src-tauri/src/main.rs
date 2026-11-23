@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use serde_json::{json, Value};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -11,6 +12,8 @@ use tns_core::{
     StatementKind,
 };
 use tns_db::{CalculationRecord, Database, HistoryEntry};
+use tns_pdf::model::Statement;
+use tns_pdf::{parse_pdf, unique_xlsx_file_name, write_statement_xlsx_with, PdfError};
 
 struct AppState {
     db: Mutex<Database>,
@@ -35,18 +38,22 @@ fn data_dir() -> PathBuf {
 }
 
 #[tauri::command]
-fn history_list(limit: Option<usize>, state: tauri::State<'_, AppState>) -> Result<Vec<HistoryEntry>, String> {
+fn history_list(
+    limit: Option<usize>,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<HistoryEntry>, String> {
     let db = state.db.lock().map_err(|error| error.to_string())?;
-    db.history(limit.unwrap_or(50)).map_err(|error| error.to_string())
+    db.history(limit.unwrap_or(50))
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
 fn backup_db(state: tauri::State<'_, AppState>) -> Result<String, String> {
     let db = state.db.lock().map_err(|error| error.to_string())?;
-    let target = state
-        .data_dir
-        .join("backups")
-        .join(format!("tns_database_backup_{}.sqlite", tns_db::timestamp_now()));
+    let target = state.data_dir.join("backups").join(format!(
+        "tns_database_backup_{}.sqlite",
+        tns_db::timestamp_now()
+    ));
     db.backup_to(&target)
         .map(|path| path.to_string_lossy().to_string())
         .map_err(|error| error.to_string())
@@ -86,10 +93,26 @@ struct DetectedFile {
     consumer: String,
     contract: String,
     error: Option<String>,
+    is_pdf: bool,
 }
 
 impl DetectedFile {
-    fn read(path: PathBuf) -> Self {
+    fn detect(path: PathBuf) -> Self {
+        let is_pdf = path
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("pdf"));
+        if is_pdf {
+            // PDFs are recognized by extension only here; the real statement
+            // detection happens when the file is processed.
+            return Self {
+                path,
+                kind: StatementKind::Unknown,
+                consumer: String::new(),
+                contract: String::new(),
+                error: None,
+                is_pdf: true,
+            };
+        }
         match tns_excel::read(&path) {
             Ok(book) => {
                 let (kind, consumer, contract) = detect_statement_type(&book);
@@ -99,6 +122,7 @@ impl DetectedFile {
                     consumer,
                     contract,
                     error: None,
+                    is_pdf: false,
                 }
             }
             Err(error) => Self {
@@ -107,14 +131,23 @@ impl DetectedFile {
                 consumer: String::new(),
                 contract: String::new(),
                 error: Some(error.to_string()),
+                is_pdf: false,
             },
+        }
+    }
+
+    fn kind_label(&self) -> &'static str {
+        if self.is_pdf {
+            "pdf"
+        } else {
+            self.kind.as_str()
         }
     }
 
     fn to_json(&self) -> Value {
         json!({
             "path": self.path.to_string_lossy(),
-            "kind": self.kind.as_str(),
+            "kind": self.kind_label(),
             "consumer": self.consumer,
             "contract": self.contract,
             "error": self.error,
@@ -128,14 +161,14 @@ fn detect_path(path: &Path) -> Result<Value, String> {
     }
 
     if path.is_file() {
-        let file = DetectedFile::read(path.to_path_buf());
+        let file = DetectedFile::detect(path.to_path_buf());
         if let Some(error) = file.error.as_deref() {
             return Err(error.to_string());
         }
         return Ok(json!({
             "path": file.path.to_string_lossy(),
             "is_dir": false,
-            "kind": file.kind.as_str(),
+            "kind": file.kind_label(),
             "consumer": file.consumer,
             "contract": file.contract,
             "files": [file.to_json()],
@@ -148,9 +181,9 @@ fn detect_path(path: &Path) -> Result<Value, String> {
         .map(|entry| entry.path())
         .filter(|entry| entry.is_file())
         .filter(|entry| {
-            entry
-                .extension()
-                .is_some_and(|extension| extension.eq_ignore_ascii_case("xlsx"))
+            entry.extension().is_some_and(|extension| {
+                extension.eq_ignore_ascii_case("xlsx") || extension.eq_ignore_ascii_case("pdf")
+            })
         })
         .filter(|entry| {
             entry
@@ -165,8 +198,11 @@ fn detect_path(path: &Path) -> Result<Value, String> {
             .unwrap_or_default()
     });
 
-    let files: Vec<DetectedFile> = candidates.into_iter().map(DetectedFile::read).collect();
-    let readable: Vec<&DetectedFile> = files.iter().filter(|file| file.error.is_none()).collect();
+    let files: Vec<DetectedFile> = candidates.into_iter().map(DetectedFile::detect).collect();
+    let readable: Vec<&DetectedFile> = files
+        .iter()
+        .filter(|file| file.error.is_none() && !file.is_pdf)
+        .collect();
     // The folder is a statement batch only when every readable workbook agrees on the type.
     let kind = match readable.first() {
         Some(first)
@@ -178,7 +214,9 @@ fn detect_path(path: &Path) -> Result<Value, String> {
         _ => StatementKind::Unknown,
     };
     let (consumer, contract) = match readable.first() {
-        Some(first) if kind != StatementKind::Unknown => (first.consumer.clone(), first.contract.clone()),
+        Some(first) if kind != StatementKind::Unknown => {
+            (first.consumer.clone(), first.contract.clone())
+        }
         _ => (String::new(), String::new()),
     };
 
@@ -203,7 +241,9 @@ fn split_period(period: &str) -> (String, String) {
     let cleaned = period.replace("г.", "");
     let mut tokens = cleaned.split_whitespace().map(str::to_string);
     match (tokens.next(), tokens.next()) {
-        (Some(month), Some(year)) if year.len() == 4 && year.chars().all(|value| value.is_ascii_digit()) => {
+        (Some(month), Some(year))
+            if year.len() == 4 && year.chars().all(|value| value.is_ascii_digit()) =>
+        {
             (month, year)
         }
         _ => (String::new(), String::new()),
@@ -310,6 +350,164 @@ async fn process_statement(
     Ok(payload)
 }
 
+fn statement_matches_mode(statement: &Statement, mode: &str) -> bool {
+    match mode {
+        "dom" => statement.statement.kind == "dom",
+        "gorod" => statement.statement.kind == "gorod",
+        _ => true,
+    }
+}
+
+fn run_pdf(
+    source: &Path,
+    output_dir: Option<&Path>,
+    mode: &str,
+    progress: Option<&dyn Fn(u8, &str)>,
+    cancel: Option<&dyn Fn() -> bool>,
+) -> Result<Vec<ProcessResult>, String> {
+    let source_name = source
+        .file_name()
+        .map(|value| value.to_string_lossy().to_string())
+        .unwrap_or_else(|| "PDF".into());
+    if let Some(callback) = progress {
+        callback(5, &format!("Чтение PDF: {source_name}..."));
+    }
+    if cancel.map(|callback| callback()).unwrap_or(false) {
+        return Err("Расчет отменен пользователем.".into());
+    }
+
+    let statements = parse_pdf(source).map_err(|error| match error {
+        PdfError::NoStatements => "В PDF не найдены ведомости ТНС Энерго.".to_string(),
+        error => format!("Не удалось разобрать PDF: {error}"),
+    })?;
+    let selected: Vec<&Statement> = statements
+        .iter()
+        .filter(|statement| statement_matches_mode(statement, mode))
+        .collect();
+    if selected.is_empty() {
+        let organization = match mode {
+            "dom" => "ООО «Южный Дом»",
+            "gorod" => "ООО «Южный Город»",
+            _ => "ТНС Энерго",
+        };
+        return Err(format!("В PDF не найдены ведомости {organization}."));
+    }
+    if let Some(callback) = progress {
+        callback(
+            15,
+            &format!(
+                "Найдено ведомостей: {}. Формирование Excel...",
+                selected.len()
+            ),
+        );
+    }
+
+    let output = output_dir.map(Path::to_path_buf).unwrap_or_else(|| {
+        source
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .to_path_buf()
+    });
+    std::fs::create_dir_all(&output)
+        .map_err(|error| format!("Не удалось создать папку {}: {error}", output.display()))?;
+
+    let mut used: HashSet<String> = HashSet::new();
+    let mut results = Vec::with_capacity(selected.len());
+    for statement in selected {
+        if cancel.map(|callback| callback()).unwrap_or(false) {
+            return Err("Расчет отменен пользователем.".into());
+        }
+        let file_name =
+            unique_xlsx_file_name(statement, &mut used).map_err(|error| error.to_string())?;
+        let label = statement
+            .statement
+            .month_label
+            .clone()
+            .unwrap_or_else(|| "ведомость".to_string());
+        // The writer's first progress message names the temporary projection
+        // file; replace it with a PDF-facing label and keep the other steps.
+        let wrapped = |percent: u8, message: &str| {
+            let Some(callback) = progress else {
+                return;
+            };
+            let text = if message.starts_with("Чтение файла:") {
+                format!("Формирование ведомости: {label}...")
+            } else {
+                message.to_string()
+            };
+            callback(percent, &text);
+        };
+        let writer_progress: Option<&dyn Fn(u8, &str)> =
+            progress.map(|_| &wrapped as &dyn Fn(u8, &str));
+        let result =
+            write_statement_xlsx_with(statement, &output, &file_name, writer_progress, cancel)
+                .map_err(|error| format!("Не удалось создать ведомость: {error}"))?;
+        results.push(result);
+    }
+    Ok(results)
+}
+
+#[tauri::command]
+async fn process_pdf(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    source_path: String,
+    output_dir: Option<String>,
+    mode: Option<String>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let mode = mode.unwrap_or_else(|| "both".to_string());
+    if !matches!(mode.as_str(), "both" | "dom" | "gorod") {
+        return Err(format!("Неизвестный режим расчёта: {mode}."));
+    }
+    if state
+        .running
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        return Err("Расчет уже выполняется.".into());
+    }
+    let _guard = RunningGuard(state.running.clone());
+    state.cancel.store(false, Ordering::SeqCst);
+
+    let app = app.clone();
+    let cancel_flag = state.cancel.clone();
+    let source = PathBuf::from(source_path);
+    let output = output_dir.map(PathBuf::from);
+    let results = tauri::async_runtime::spawn_blocking(move || {
+        let progress = |percent: u8, message: &str| {
+            let _ = app.emit(
+                "process-progress",
+                json!({ "percent": percent, "message": message }),
+            );
+        };
+        let cancel = move || cancel_flag.load(Ordering::SeqCst);
+        run_pdf(
+            Path::new(&source),
+            output.as_deref(),
+            &mode,
+            Some(&progress),
+            Some(&cancel),
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())??;
+
+    let db = state.db.lock();
+    let mut payloads = Vec::with_capacity(results.len());
+    for result in &results {
+        let mut payload = serde_json::to_value(result).map_err(|error| error.to_string())?;
+        let warning = match &db {
+            Ok(db) => record_history(db, result),
+            Err(error) => Some(error.to_string()),
+        };
+        if let Some(warning) = warning {
+            payload["history_warning"] = json!(warning);
+        }
+        payloads.push(payload);
+    }
+    Ok(payloads)
+}
+
 #[tauri::command]
 fn cancel_statement(state: tauri::State<'_, AppState>) -> serde_json::Value {
     state.cancel.store(true, Ordering::SeqCst);
@@ -332,6 +530,26 @@ async fn update_check(app: tauri::AppHandle) -> Result<serde_json::Value, String
     }
 }
 
+fn configure_pdfium(app: &tauri::AppHandle) {
+    // Bundled builds ship pdfium.dll as a Tauri resource; `cargo run` and
+    // `cargo test` fall back to the vendored copy in the workspace.
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        let library = resource_dir.join("pdfium.dll");
+        if library.is_file() {
+            std::env::set_var("PDFIUM_DYNAMIC_LIB_PATH", &library);
+            return;
+        }
+    }
+    let dev = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("crates")
+        .join("tns-pdf")
+        .join("vendor");
+    if dev.is_dir() {
+        std::env::set_var("PDFIUM_DYNAMIC_LIB_PATH", &dev);
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -346,6 +564,7 @@ fn main() {
                 cancel: Arc::new(AtomicBool::new(false)),
                 running: Arc::new(AtomicBool::new(false)),
             });
+            configure_pdfium(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -356,6 +575,7 @@ fn main() {
             config_get,
             detect_statement,
             process_statement,
+            process_pdf,
             cancel_statement,
             update_check
         ])
@@ -428,7 +648,10 @@ mod tests {
     #[test]
     fn missing_path_is_an_error() {
         let error = detect_path(&temp_dir("missing")).expect_err("missing path");
-        assert!(error.contains("Путь не найден"), "unexpected error: {error}");
+        assert!(
+            error.contains("Путь не найден"),
+            "unexpected error: {error}"
+        );
     }
 
     #[test]
@@ -440,6 +663,73 @@ mod tests {
         assert_eq!(value["kind"], "unknown");
         assert_eq!(value["files"].as_array().map(Vec::len), Some(0));
         std::fs::remove_dir_all(directory).expect("remove temp dir");
+    }
+
+    #[test]
+    fn detects_pdf_file_by_extension() {
+        let directory = temp_dir("pdf-file");
+        std::fs::create_dir_all(&directory).expect("create temp dir");
+        let path = directory.join("statement.pdf");
+        std::fs::write(&path, b"%PDF-1.4 fake fixture").expect("write fake pdf");
+        let value = detect_path(&path).expect("detect pdf");
+        assert_eq!(value["is_dir"], false);
+        assert_eq!(value["kind"], "pdf");
+        assert_eq!(value["consumer"], "");
+        assert_eq!(value["contract"], "");
+        assert_eq!(value["files"].as_array().map(Vec::len), Some(1));
+        assert_eq!(value["files"][0]["kind"], "pdf");
+        std::fs::remove_dir_all(directory).expect("remove temp dir");
+    }
+
+    #[test]
+    fn folder_lists_pdf_candidates_without_parsing() {
+        let directory = temp_dir("pdf-folder");
+        std::fs::create_dir_all(&directory).expect("create temp dir");
+        std::fs::write(directory.join("first.pdf"), b"%PDF-1.4 fake").expect("write fake pdf");
+        std::fs::write(directory.join("second.PDF"), b"%PDF-1.5 fake").expect("write fake pdf");
+        let value = detect_path(&directory).expect("detect folder");
+        assert_eq!(value["is_dir"], true);
+        let files = value["files"].as_array().expect("files array");
+        assert_eq!(files.len(), 2);
+        assert!(files.iter().all(|file| file["kind"] == "pdf"));
+        // PDF candidates never decide the folder kind; only workbooks do.
+        assert_eq!(value["kind"], "unknown");
+        std::fs::remove_dir_all(directory).expect("remove temp dir");
+    }
+
+    #[test]
+    #[ignore = "requires TNS_PDF_FIXTURE and the vendored PDFium DLL"]
+    fn processes_real_pdf_through_run_pdf() {
+        let source = PathBuf::from(std::env::var("TNS_PDF_FIXTURE").expect("TNS_PDF_FIXTURE"));
+        std::env::set_var(
+            "PDFIUM_DYNAMIC_LIB_PATH",
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("..")
+                .join("crates")
+                .join("tns-pdf")
+                .join("vendor"),
+        );
+        let output = temp_dir("pdf-run");
+        let seen = Mutex::new(Vec::new());
+        let results = run_pdf(
+            &source,
+            Some(&output),
+            "both",
+            Some(&|percent, message| {
+                seen.lock()
+                    .expect("progress lock")
+                    .push((percent, message.to_string()));
+            }),
+            Some(&|| false),
+        )
+        .expect("run pdf");
+        assert!(!results.is_empty());
+        assert!(results
+            .iter()
+            .all(|result| Path::new(&result.target_path).is_file()));
+        let seen = seen.into_inner().expect("progress lock");
+        assert!(seen.iter().any(|(percent, _)| *percent == 100));
+        std::fs::remove_dir_all(output).expect("remove temp dir");
     }
 
     #[test]
