@@ -20,6 +20,7 @@ pub type FpdfPage = *mut c_void;
 pub type FpdfTextPage = *mut c_void;
 pub type FpdfPageObject = *mut c_void;
 pub type FpdfPathSegment = *mut c_void;
+pub type FpdfClipPath = *mut c_void;
 
 const FPDF_PAGEOBJ_PATH: c_int = 2;
 const FPDF_SEGMENT_LINETO: c_int = 0;
@@ -99,6 +100,13 @@ type FnPathGetPathSegment =
 type FnPathSegmentGetPoint =
     unsafe extern "system" fn(FpdfPathSegment, *mut c_float, *mut c_float) -> c_int;
 type FnPathSegmentGetType = unsafe extern "system" fn(FpdfPathSegment) -> c_int;
+type FnTextGetTextObject = unsafe extern "system" fn(FpdfTextPage, c_int) -> FpdfPageObject;
+type FnPageObjGetClipPath = unsafe extern "system" fn(FpdfPageObject) -> FpdfClipPath;
+type FnClipCountPaths = unsafe extern "system" fn(FpdfClipPath) -> c_int;
+type FnClipCountSegments =
+    unsafe extern "system" fn(FpdfClipPath, c_int) -> c_int;
+type FnClipGetPathSegment =
+    unsafe extern "system" fn(FpdfClipPath, c_int, c_int) -> FpdfPathSegment;
 
 struct Api {
     _library: Library,
@@ -129,6 +137,11 @@ struct Api {
     path_get_path_segment: FnPathGetPathSegment,
     path_segment_get_point: FnPathSegmentGetPoint,
     path_segment_get_type: FnPathSegmentGetType,
+    text_get_text_object: FnTextGetTextObject,
+    page_obj_get_clip_path: FnPageObjGetClipPath,
+    clip_count_paths: FnClipCountPaths,
+    clip_count_segments: FnClipCountSegments,
+    clip_get_path_segment: FnClipGetPathSegment,
 }
 
 unsafe impl Send for Api {}
@@ -262,6 +275,11 @@ fn bind(library: Library, path: &Path) -> Result<Api, PdfiumError> {
             path_get_path_segment: symbol(&library, path, "FPDFPath_GetPathSegment")?,
             path_segment_get_point: symbol(&library, path, "FPDFPathSegment_GetPoint")?,
             path_segment_get_type: symbol(&library, path, "FPDFPathSegment_GetType")?,
+            text_get_text_object: symbol(&library, path, "FPDFText_GetTextObject")?,
+            page_obj_get_clip_path: symbol(&library, path, "FPDFPageObj_GetClipPath")?,
+            clip_count_paths: symbol(&library, path, "FPDFClipPath_CountPaths")?,
+            clip_count_segments: symbol(&library, path, "FPDFClipPath_CountPathSegments")?,
+            clip_get_path_segment: symbol(&library, path, "FPDFClipPath_GetPathSegment")?,
             _library: library,
         };
         init_library();
@@ -519,6 +537,101 @@ impl TextPage<'_> {
         unsafe { (self.api.text_count_chars)(self.raw) }.max(0) as usize
     }
 
+    /// Visible characters with their page-space boxes.
+    ///
+    /// PDFium's text page also exposes text that is clipped away by a text
+    /// object's clip path. Those characters are not visible on the page and
+    /// would otherwise leak into neighbouring table cells, so they are
+    /// filtered here using the clip path bounding box.
+    pub fn visible_chars(&self) -> Vec<VisibleChar> {
+        let count = self.count_chars();
+        let mut output = Vec::with_capacity(count);
+        let mut index = 0;
+        while index < count {
+            let value = self.unicode(index);
+            let (character, step) = if (0xD800..=0xDBFF).contains(&value) && index + 1 < count {
+                let low = self.unicode(index + 1);
+                if (0xDC00..=0xDFFF).contains(&low) {
+                    let code = 0x10000 + ((value - 0xD800) << 10) + (low - 0xDC00);
+                    (char::from_u32(code).unwrap_or('\u{FFFD}'), 2)
+                } else {
+                    (char::from_u32(value).unwrap_or('\u{FFFD}'), 1)
+                }
+            } else {
+                (char::from_u32(value).unwrap_or('\u{FFFD}'), 1)
+            };
+            if character != '\0' {
+                if let Some((left, right, bottom, top)) = self.char_box(index) {
+                    let center_x = (left + right) / 2.0;
+                    let center_y = (bottom + top) / 2.0;
+                    if character.is_whitespace()
+                        || self.char_is_visible(index, center_x, center_y)
+                    {
+                        output.push(VisibleChar {
+                            character,
+                            left,
+                            right,
+                            bottom,
+                            top,
+                        });
+                    }
+                }
+            }
+            index += step;
+        }
+        output
+    }
+
+    fn char_is_visible(&self, index: usize, center_x: f64, center_y: f64) -> bool {
+        let object = unsafe { (self.api.text_get_text_object)(self.raw, index as c_int) };
+        if object.is_null() {
+            return true;
+        }
+        let clip = unsafe { (self.api.page_obj_get_clip_path)(object) };
+        if clip.is_null() {
+            return true;
+        }
+        let paths = unsafe { (self.api.clip_count_paths)(clip) };
+        if paths <= 0 {
+            return true;
+        }
+        for path in 0..paths {
+            let segments = unsafe { (self.api.clip_count_segments)(clip, path) };
+            if segments <= 0 {
+                continue;
+            }
+            let mut left = f64::MAX;
+            let mut right = f64::MIN;
+            let mut bottom = f64::MAX;
+            let mut top = f64::MIN;
+            for segment_index in 0..segments {
+                let segment =
+                    unsafe { (self.api.clip_get_path_segment)(clip, path, segment_index) };
+                if segment.is_null() {
+                    continue;
+                }
+                let mut x = 0.0f32;
+                let mut y = 0.0f32;
+                if unsafe { (self.api.path_segment_get_point)(segment, &mut x, &mut y) } == 0 {
+                    continue;
+                }
+                left = left.min(x as f64);
+                right = right.max(x as f64);
+                bottom = bottom.min(y as f64);
+                top = top.max(y as f64);
+            }
+            if left <= right
+                && center_x >= left - 0.5
+                && center_x <= right + 0.5
+                && center_y >= bottom - 0.5
+                && center_y <= top + 0.5
+            {
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn unicode(&self, index: usize) -> u32 {
         unsafe { (self.api.text_get_unicode)(self.raw, index as c_int) as u32 }
     }
@@ -609,6 +722,15 @@ pub struct Rect {
     pub left: f64,
     pub bottom: f64,
     pub right: f64,
+    pub top: f64,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct VisibleChar {
+    pub character: char,
+    pub left: f64,
+    pub right: f64,
+    pub bottom: f64,
     pub top: f64,
 }
 

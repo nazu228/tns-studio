@@ -6,8 +6,11 @@
 
 pub mod layout;
 pub mod model;
+pub mod parse;
 pub mod pdfium;
 pub mod text;
+
+pub use parse::parse_pdf;
 
 /// Crate version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

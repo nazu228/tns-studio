@@ -1,6 +1,6 @@
 //! Vector-grid geometry: table rules, column boundaries, row bands.
 
-use crate::pdfium::{PathObject, Segment, TextPage};
+use crate::pdfium::{PathObject, Segment, TextPage, VisibleChar};
 use std::collections::BTreeMap;
 
 pub const COLUMNS: usize = 27;
@@ -259,8 +259,7 @@ pub fn number_row(text: &TextPage<'_>) -> Option<NumberRow> {
 }
 
 /// Plain page text in PDFium character order, decoded with surrogate pairs.
-pub fn page_text(text: &TextPage<'_>) -> String {
-    let count = text.count_chars();
+pub fn page_text(text: &TextPage<'_>) -> String {    let count = text.count_chars();
     let mut output = String::with_capacity(count);
     let mut index = 0;
     while index < count {
@@ -276,6 +275,33 @@ pub fn page_text(text: &TextPage<'_>) -> String {
         }
         output.push(char::from_u32(value).unwrap_or('\u{FFFD}'));
         index += 1;
+    }
+    output
+}
+
+/// Text of visible characters whose centre falls inside the rectangle.
+///
+/// Whitespace characters only need to be inside the vertical band; this keeps
+/// line breaks between words of the same multi-line cell.
+pub fn text_in_rect(
+    characters: &[VisibleChar],
+    left: f64,
+    top: f64,
+    right: f64,
+    bottom: f64,
+) -> String {
+    let mut output = String::new();
+    for character in characters {
+        let center_x = (character.left + character.right) / 2.0;
+        let center_y = (character.bottom + character.top) / 2.0;
+        if center_y < bottom || center_y > top {
+            continue;
+        }
+        if character.character.is_whitespace() {
+            output.push(' ');
+        } else if center_x >= left && center_x <= right {
+            output.push(character.character);
+        }
     }
     output
 }
