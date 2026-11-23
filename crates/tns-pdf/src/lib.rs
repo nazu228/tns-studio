@@ -12,7 +12,7 @@ pub mod text;
 pub mod xlsx;
 
 pub use parse::parse_pdf;
-pub use xlsx::{write_statement_xlsx, xlsx_file_stem};
+pub use xlsx::{unique_xlsx_file_name, write_statement_xlsx, write_statement_xlsx_with, xlsx_file_stem};
 
 /// Crate version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

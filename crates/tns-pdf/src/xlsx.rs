@@ -7,6 +7,7 @@
 
 use crate::model::{House, Meter, Statement};
 use crate::PdfError;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tns_core::{ProcessOptions, ProcessResult};
@@ -36,6 +37,25 @@ pub fn xlsx_file_stem(statement: &Statement) -> Result<String, PdfError> {
     Ok(stem)
 }
 
+/// Build a unique output file name for one PDF run.
+///
+/// Two statements of the same contract and period (for example two
+/// corrections) would otherwise overwrite each other, so the second name
+/// gets `_2`, the third `_3`, and so on.
+pub fn unique_xlsx_file_name(
+    statement: &Statement,
+    used: &mut HashSet<String>,
+) -> Result<String, PdfError> {
+    let stem = xlsx_file_stem(statement)?;
+    let mut name = stem.clone();
+    let mut counter = 2;
+    while !used.insert(name.clone()) {
+        name = format!("{stem}_{counter}");
+        counter += 1;
+    }
+    Ok(format!("{name}.xlsx"))
+}
+
 /// Write one parsed statement as the standard TNS workbook.
 ///
 /// `file_name` is passed to `tns-core` as the custom output name; the source
@@ -44,6 +64,19 @@ pub fn write_statement_xlsx(
     statement: &Statement,
     output_dir: &Path,
     file_name: &str,
+) -> Result<ProcessResult, PdfError> {
+    write_statement_xlsx_with(statement, output_dir, file_name, None, None)
+}
+
+/// Same as [`write_statement_xlsx`], but forwards progress and cancellation
+/// callbacks to `tns-core::process_statement` so a desktop app can stream
+/// updates and stop a long PDF run.
+pub fn write_statement_xlsx_with(
+    statement: &Statement,
+    output_dir: &Path,
+    file_name: &str,
+    progress: Option<&dyn Fn(u8, &str)>,
+    cancel: Option<&dyn Fn() -> bool>,
 ) -> Result<ProcessResult, PdfError> {
     let source = write_source_projection(statement)?;
     let (month, year) = document_month_year(statement)?;
@@ -54,8 +87,8 @@ pub fn write_statement_xlsx(
             custom_filename: Some(file_name.to_string()),
             month: Some(month),
             year: Some(year),
-            progress: None,
-            cancel: None,
+            progress,
+            cancel,
         },
     )
     .map_err(|error| projection_error(error.to_string()))?;
@@ -421,13 +454,37 @@ mod tests {
     }
 
     #[test]
+    fn duplicate_statements_get_numbered_file_names() {
+        let statement = statement_fixture();
+        let mut used = HashSet::new();
+        assert_eq!(
+            unique_xlsx_file_name(&statement, &mut used).expect("first name"),
+            "23110604327_Октябрь_2026.xlsx"
+        );
+        assert_eq!(
+            unique_xlsx_file_name(&statement, &mut used).expect("second name"),
+            "23110604327_Октябрь_2026_2.xlsx"
+        );
+        assert_eq!(
+            unique_xlsx_file_name(&statement, &mut used).expect("third name"),
+            "23110604327_Октябрь_2026_3.xlsx"
+        );
+    }
+
+    #[test]
     fn writes_standard_workbook_from_statement() {
         let statement = statement_fixture();
         let directory = tempfile::tempdir().expect("tempdir");
-        let result = write_statement_xlsx(
+        let seen: std::sync::Mutex<Vec<(u8, String)>> = std::sync::Mutex::new(Vec::new());
+        let cancelled = [false; 1];
+        let result = write_statement_xlsx_with(
             &statement,
             directory.path(),
             "23110604327_Октябрь_2026.xlsx",
+            Some(&|percent, message| {
+                seen.lock().expect("progress lock").push((percent, message.to_string()));
+            }),
+            Some(&|| cancelled[0]),
         )
         .expect("write statement");
         assert!(result.success);
@@ -438,5 +495,10 @@ mod tests {
         assert_eq!(result.statement_total, 150.0);
         assert!(result.balance_ok);
         assert!(Path::new(&result.target_path).is_file());
+        let seen = seen.into_inner().expect("progress lock");
+        assert!(
+            seen.iter().any(|(percent, _)| *percent == 100),
+            "writer must forward core progress, got {seen:?}"
+        );
     }
 }

@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::ExitCode;
-use tns_pdf::{parse_pdf, write_statement_xlsx, xlsx_file_stem, PdfError};
+use tns_pdf::{parse_pdf, unique_xlsx_file_name, write_statement_xlsx, PdfError};
 
 fn main() -> ExitCode {
     match run() {
@@ -91,14 +91,8 @@ fn run() -> Result<(), Error> {
         std::fs::create_dir_all(output_dir).map_err(|error| Error::Pdf(PdfError::Io(error)))?;
         let mut used: HashSet<String> = HashSet::new();
         for statement in &statements {
-            let stem = xlsx_file_stem(statement).map_err(Error::Pdf)?;
-            let mut name = stem.clone();
-            let mut counter = 2;
-            while !used.insert(name.clone()) {
-                name = format!("{stem}_{counter}");
-                counter += 1;
-            }
-            let result = write_statement_xlsx(statement, output_dir, &format!("{name}.xlsx"))
+            let file_name = unique_xlsx_file_name(statement, &mut used).map_err(Error::Pdf)?;
+            let result = write_statement_xlsx(statement, output_dir, &file_name)
                 .map_err(Error::Pdf)?;
             println!("{}", result.target_path);
         }
