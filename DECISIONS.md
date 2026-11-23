@@ -163,3 +163,15 @@
 **Why:** this is the only agent-permitted path that leaves a working updater release without bypassing the tag safety guard. The app code at the failed and fixed tags is the same; only CI/release documentation changed.
 
 **Consequence:** `releases/latest/download/latest.json` serves version 0.2.0 and a valid installer URL. Future releases should use a normal `vX.Y.Z` tag. The old tag can be deleted manually by the user; GitHub CDN may serve the previous `latest.json` for a few minutes after an asset replacement.
+
+## 2026-11-23 — PDF input uses PDFium with the vector grid, not text heuristics
+
+**Context:** the new TNS PDFs are text-based iText exports, but the table has 27 columns and a full vector grid. A text-only prototype found only 20/22 houses and lost rows; `Ведомость` also appears in a cover letter. The Python/pypdfium2 prototype found 354 table pages and all official totals exactly.
+
+**Decision:** add `crates/tns-pdf` with a vendored PDFium 153.0.7999.0 DLL. A statement page requires 28 vertical clusters (or the 1..27 number row plus table headers and the `стр. N из M` footer); rows come from full horizontal rulings, not fixed y positions. Columns are derived from the number row and validated against the header profile. Houses/meters are classified from cell geometry and the hard invariants; JSON is written only after all checks pass. PDF input is limited to known iText statements; scans and unknown layouts are rejected. pdf.io is not used.
+
+**Why:** the vector grid is the reliable source of truth; text-only extraction silently loses houses. The parser must fail loudly rather than emit a plausible but wrong workbook.
+
+**Consequence:** PDF support needs a ~7.26 MB PDFium DLL and is currently CLI/JSON only. 7b must map `Statement` to the standard xlsx and add multiple-statement/contract naming; 7c adds UI file/folder support. PDF/JSON fixtures with personal data are not committed. PDFium calls must be serialized; the engine is not thread-safe.
+
+**Tried and rejected:** pdf.io/Adobe intermediate Excel (broken headers, metadata outside the table, page-sheet splits); text-only extraction (20/22 houses); OCR for these files (unnecessary; reject scans explicitly).

@@ -65,7 +65,7 @@ TNS Energy Studio — Windows-приложение для обработки в�
 | `src-tauri` | Tauri 2 shell, окно 1280×880, 9 команд; real `detect_statement`/`process_statement` (+cancel), progress, SQLite history/houses, dialog+updater plugins | **7 passed**, `cargo check` ok |
 | `apps/ui` | React/Vite главное окно TNS, design parity; реальный Tauri IPC (`ipc.ts`), detect/process/progress/cancel/history/backup/open; моков и `setTimeout` нет | `typecheck` + `build` ok; full verify passed |
 
-Итого **32 Rust-теста** и **22 pytest passed, 0 xfailed**. `process_statement` совпадает с golden по `result` на dom/gorod; writer совпадает по полному xlsx-сигналу на всех 3 фикстурах, включая стили/CF/hyperlink; Tauri-команды detect/process покрыты тестами на фикстурах и пишут историю в SQLite; UI вызывает их через `ipc.ts`, моков нет.
+Итого **53 Rust-теста** (core 16, db 4, excel 5, tauri 7, pdf 21) и **22 pytest passed, 0 xfailed**. `process_statement` совпадает с golden по `result` на dom/gorod; writer совпадает по полному xlsx-сигналу на всех 3 фикстурах, включая стили/CF/hyperlink; Tauri-команды detect/process покрыты тестами на фикстурах и пишут историю в SQLite; UI вызывает их через `ipc.ts`, моков нет. PDF-парсер 7a извлекает городскую ведомость из PDF, но ещё не подключён к Tauri/UI и не пишет xlsx.
 
 ### Чего ещё нет
 
@@ -167,6 +167,10 @@ tns-studio/
 - Локальная unsigned NSIS-сборка: `target/release/bundle/nsis/TNS Energy Studio_0.2.0_x64-setup.exe` (5 477 889 байт, SHA256 `6130A50DAC575DA9C9E90299EB637675F905DEB4BEE2058E8D95351F12A70686`); release binary CDP smoke — UI и `v0.2.0` загрузились.
 - **Опубликовано:** GitHub Release `v0.2.0-1` (installer + `.exe.sig` + `latest.json`); release workflow run 44471114550 успешен. Старый тег `v0.2.0` не содержит релиза; удаление тега — вручную.
 
+### Срез 7 — PDF input
+**7a готов:** `crates/tns-pdf` с PDFium 153.0.7999.0, векторной сеткой, детекцией блоков/футеров, 27 колонками, домами/ПУ и жёсткими инвариантами. Городской PDF 82 стр. — 22 дома, `736 051,312` / `4 309 766,80`, 918 ПУ; CLI/JSON. 21 unit-тест; реальный PDF — ignored/CLI, PDF/JSON не коммитятся.
+**Следующее:** 7b — маппинг `Statement` → стандартная ведомость (xlsx), несколько ведомостей, имена по договору; 7c — UI PDF-файл/папка и несколько результатов. Парсер пока не подключён к Tauri/UI.
+
 ---
 
 ## 7. Жёсткие ограничения
@@ -205,6 +209,7 @@ npm --prefix apps/ui run build
 cargo test --manifest-path crates/tns-core/Cargo.toml
 cargo test --manifest-path crates/tns-db/Cargo.toml
 cargo test --manifest-path crates/tns-excel/Cargo.toml
+cargo test -p tns-pdf
 cargo test --manifest-path src-tauri/Cargo.toml
 cargo check --manifest-path src-tauri/Cargo.toml
 cargo build --manifest-path crates/tns-parity/Cargo.toml
@@ -274,8 +279,8 @@ graphify update .          # после изменений кода, без LLM
 ## 11. Первый шаг нового чата
 
 1. Прочитай `docs/HANDOFF_PROMPT.md`, `docs/status.md`, `graphify-out/GRAPH_REPORT.md`.
-2. Обнови UI-зависимости (`npm --prefix apps/ui ci`, если менялся lock) и запусти `.\scripts\verify.ps1 -RequireRustOutput` — база: 32 Rust-теста, 22 pytest passed / 0 xfailed, UI typecheck/build.
-3. Проверь обновление с предыдущей версии через `latest.json`; `releases/latest/download/latest.json` может отдавать старый asset несколько минут после замены.
+2. Обнови UI-зависимости (`npm --prefix apps/ui ci`, если менялся lock) и запусти `.\scripts\verify.ps1 -RequireRustOutput` — база: 53 Rust-теста, 22 pytest passed / 0 xfailed, UI typecheck/build.
+3. PDF 7b: `crates/tns-pdf::Statement` → стандартная ведомость (xlsx), несколько ведомостей, имена по договору; затем 7c — UI PDF-файл/папка.
 4. Ручной smoke native dialog, live-отмены и `open_file`/`open_folder` на release-сборке. Старый тег `v0.2.0` удаляется вручную, если нужен чистый список тегов.
 5. После правок кода — `graphify update .`; финальный gate — `.\scripts\verify.ps1 -RequireRustOutput`.
 

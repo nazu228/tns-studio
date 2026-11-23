@@ -18,11 +18,13 @@ TNS Energy Studio — десктопное приложение для обра�
 - `crates/tns-core` — `process_statement` совпадает с golden по result и по
   полной xlsx-сигнатуре (значения, формулы, merge, freeze, стили, CF, hyperlink).
 - `crates/tns-db` — локальная SQLite: история, дома, тарифы, бэкап.
+- `crates/tns-pdf` — PDFium-парсер PDF-ведомостей (7a): векторная сетка,
+  только известный layout; в приложение пока не подключён.
 - `src-tauri` — реальные `detect_statement`/`process_statement`, прогресс
   `process-progress`, `cancel_statement`, запись истории, updater-плагин.
 - `apps/ui` — реальный Tauri IPC вместо мока: выбор файла/папки, режимы
   both/dom/gorod, прогресс, отмена, результаты, история, бэкап, open file/folder.
-- Проверки: **32 Rust-теста** (core 16, db 4, excel 5, tauri 7) и
+- Проверки: **53 Rust-теста** (core 16, db 4, excel 5, tauri 7, pdf 21) и
   **22 pytest passed / 0 xfailed**.
 - Релиз `0.2.0` опубликован как GitHub Release `v0.2.0-1`: NSIS installer,
   `.exe.sig` и `latest.json`; updater проверен через GitHub endpoint.

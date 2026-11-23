@@ -86,6 +86,16 @@
   `releases/latest/download/latest.json` отдаёт версию 0.2.0 и URL на installer.
   Старый тег `v0.2.0` остался без релиза и не используется.
 
+### PDF input — 7a (парсер готов, в приложение не подключён)
+- [x] `crates/tns-pdf`: PDFium 153.0.7999.0, векторная сетка, детекция ведомостей,
+  27 колонок, дома/ПУ, жёсткие инварианты; городской PDF 82 стр. — 22 дома,
+  `736 051,312` / `4 309 766,80`, 918 ПУ.
+- [x] 21 unit-тест + CLI `parse <pdf> --json <dir>`; JSON schema_version=1;
+  реальный PDF — через ignored-тест/CLI, PDF/JSON не коммитятся.
+- [ ] 7b: маппинг `Statement` → стандартная ведомость ТНС (xlsx), несколько
+  ведомостей, имена по договору (`<contract>_<month>_<year>[_за_<period>]`).
+- [ ] 7c: UI PDF-файл/папка, несколько результатов, прогресс/ошибки.
+
 ## Проверки
 
 | Проверка | Результат |
@@ -100,6 +110,7 @@
 | `cargo check --manifest-path src-tauri/Cargo.toml` | ok (Tauri 2.12, dialog+updater) |
 | `cargo test --manifest-path src-tauri/Cargo.toml` | 7 passed |
 | `cargo test --manifest-path crates/tns-excel/Cargo.toml` | 5 passed |
+| `cargo test -p tns-pdf` | 21 passed, 2 ignored |
 | `cargo build --manifest-path crates/tns-parity/Cargo.toml` | ok |
 | `.\scripts\verify.ps1 -RequireRustOutput` | All checks passed |
 | `scripts/release-latest-json.ps1` | проверен на dummy installer `.exe`/`.sig` |
@@ -111,6 +122,8 @@
 
 ## В работе
 
+- PDF 7b/7c: стандартный xlsx из PDF, несколько ведомостей, имена по договору,
+  затем UI PDF-файл/папка.
 - Ручной smoke native file dialog, live-отмены и `open_file`/`open_folder` на
   release-сборке; дальнейшие релизы — обычным тегом `v*`.
 
@@ -144,10 +157,20 @@
 - Authenticode-шаг опционален и подписывает `.exe` после Tauri bundling; это
   инвалидирует `.exe.sig`. Для полной цепочки нужен `bundle.windows.signCommand`
   до updater-подписи; без сертификата шаг пропускается.
+- PDF-парсер 7a работает только с iText-ведомостями, у которых есть векторная
+  сетка. Текстовый разбор без сетки даёт 20 домов вместо 22; сканы без текстового
+  слоя отклоняются. PDFium DLL 153.0.7999.0 вендорен (~7,26 МБ); парсер пока не
+  подключён к Tauri/UI, запись xlsx — 7b. PDFium API не потокобезопасен: парсить
+  документы последовательно.
+- В PDF нет отдельной зоны ОДН; пустая зона в текущей модели попадает в `odn`
+  (как в Excel-модели), поэтому прототип с `single` и текущий JSON расходятся
+  только по имени зоны, не по суммам.
 
 ## Следующие шаги
 
-1. Ручной smoke native file dialog, live-отмены и `open_file`/`open_folder` на release-сборке.
-2. Проверить обновление с предыдущей версии через `latest.json`.
-3. Финальный critic и визуальная приёмка на release-сборке.
-4. При желании удалить старый тег `v0.2.0` вручную; агент не может удалять теги.
+1. PDF 7b: стандартный xlsx из `Statement`, несколько ведомостей, имена по договору.
+2. PDF 7c: UI PDF-файл/папка, несколько результатов, прогресс/ошибки.
+3. Ручной smoke native file dialog, live-отмены и `open_file`/`open_folder` на release-сборке.
+4. Проверить обновление с предыдущей версии через `latest.json`.
+5. Финальный critic и визуальная приёмка на release-сборке.
+6. При желании удалить старый тег `v0.2.0` вручную; агент не может удалять теги.
