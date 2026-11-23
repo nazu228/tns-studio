@@ -130,3 +130,48 @@ pub struct Balance {
     pub volume: f64,
     pub amount: f64,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serializes_missing_numbers_as_null() {
+        let meter = Meter {
+            house: 1,
+            row: 1,
+            page: 1,
+            point: "230110605149".to_string(),
+            place: String::new(),
+            serial: "007880045000064".to_string(),
+            zone: "odn".to_string(),
+            zone_raw: String::new(),
+            preview_bucket: "odn".to_string(),
+            sub_type: "C".to_string(),
+            start: Some(21170.0),
+            end: Some(21170.0),
+            delta: None,
+            k: Some(1.0),
+            main: None,
+            extra: None,
+            unmetered: None,
+            odn: None,
+            line_loss: None,
+            tr_loss: None,
+            sub_volume: None,
+            voltage: "НН".to_string(),
+            category: "Первая".to_string(),
+            billed: None,
+            amount: Some(0.0),
+            is_sub: true,
+            is_reserve: false,
+        };
+        let value = serde_json::to_value(&meter).expect("meter serializes");
+        assert!(value["billed"].is_null());
+        assert!(value["delta"].is_null());
+        assert_eq!(value["amount"], 0.0);
+        assert_eq!(value["zone"], "odn");
+        assert_eq!(value["is_sub"], true);
+        assert_eq!(Statement::SCHEMA_VERSION, 1);
+    }
+}
