@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { MONTHS, YEARS } from "./data";
 import {
   backupDb,
   cancelStatement,
@@ -185,8 +184,6 @@ function ResultsTable({ rows }: { rows: ProcessResult["preview_rows"] }) {
 export default function App() {
   const [mode, setMode] = useState<Mode>("both");
   const [tab, setTab] = useState<Tab>("dom");
-  const [month, setMonth] = useState("Апрель");
-  const [year, setYear] = useState("2026");
   const [source, setSource] = useState("");
   const [status, setStatus] = useState("Готов к работе");
   const [calculating, setCalculating] = useState(false);
@@ -200,6 +197,7 @@ export default function App() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [backupMessage, setBackupMessage] = useState("");
+  const [alert, setAlert] = useState<string | null>(null);
 
   const modeRef = useRef<Mode>(mode);
   const processingKindRef = useRef<Tab | null>(null);
@@ -281,6 +279,7 @@ export default function App() {
     setProgress({ percent: 5, message: "Подготовка..." });
     setResults({});
     setStatus("Идёт расчёт...");
+    setAlert(null);
     if (plan.files[0] && plan.files[0].kind !== "pdf") setTab(plan.files[0].kind);
     modeRef.current = mode;
     cancelledRef.current = false;
@@ -297,6 +296,8 @@ export default function App() {
             outputDir: plan.outputDir,
             mode,
           });
+          const pdfWarnings = (pdfResults[0] as { pdf_warnings?: string[] })?.pdf_warnings;
+          if (pdfWarnings) warnings.push(...pdfWarnings);
           for (const result of pdfResults) {
             const kind: Tab = result.consumer.toLowerCase().includes("город") ? "gorod" : "dom";
             collected[kind] = result;
@@ -316,8 +317,6 @@ export default function App() {
           const result = await processStatement({
             sourcePath: file.path,
             outputDir: plan.outputDir,
-            month,
-            year,
           });
 
           collected[file.kind] = result;
@@ -338,15 +337,22 @@ export default function App() {
         setStatus("Отмена...");
       } else {
         setProgress({ percent: 100, message: "Готово" });
-        const warningParts = warnings.map((warning) => `⚠️ ${warning}`);
-        setStatus([`✅ Расчёт завершён: ${summaries.join("; ")}`, ...warningParts].join(" "));
+        if (warnings.length > 0) {
+          setAlert(warnings.join("\n"));
+          setStatus(`✅ Расчёт завершён: ${summaries.join("; ")} (с предупреждениями)`);
+        } else {
+          setAlert(null);
+          setStatus(`✅ Расчёт завершён: ${summaries.join("; ")}`);
+        }
       }
     } catch (error) {
       if (isCancellation(error)) {
         setStatus(`⏹ ${errorText(error)}`);
         setProgress({ percent: 0, message: "Отменено" });
       } else {
-        setStatus(`⚠️ ${errorText(error)}`);
+        const message = errorText(error);
+        setAlert(message);
+        setStatus(`⚠️ ${message}`);
         setProgress({ percent: 0, message: "Ошибка" });
       }
     } finally {
@@ -427,22 +433,11 @@ export default function App() {
         <div className="hint">{hint}</div>
 
         <div className="settings-grid">
-          <div>
-            <span className="label">Расчётный месяц:</span>
-            <select value={month} disabled={calculating} onChange={(e) => setMonth(e.target.value)}>
-              {MONTHS.map((m) => <option key={m}>{m}</option>)}
-            </select>
-          </div>
-          <div>
-            <span className="label">Год:</span>
-            <select value={year} disabled={calculating} onChange={(e) => setYear(e.target.value)}>
-              {YEARS.map((y) => <option key={y}>{y}</option>)}
-            </select>
-          </div>
           <div className="output-preview">
-            Автосохранение в подпапку:<br />
-            <strong>📁 Папка: {month} {year} ТНС</strong><br />
-            Дом_{month}_{year}.xlsx и Город_{month}_{year}.xlsx
+            Папка и имена файлов создаются автоматически<br />
+            из месяца и номера договора ведомости:<br />
+            <strong>📁 Папка: «Месяц Год ТНС»</strong><br />
+            <strong>📄 Файл: «Договор_Месяц_Год.xlsx»</strong>
           </div>
           <button className="btn primary calculate" onClick={() => void calculate()} disabled={calculating}>
             {calculating ? "⏳ Расчёт..." : "⚡ ВЫПОЛНИТЬ РАСЧЁТ"}
@@ -463,6 +458,18 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {alert && (
+        <div className="alert-banner" role="alert">
+          <div className="alert-icon">⚠️</div>
+          <div className="alert-text">
+            {alert.split("\n").map((line, index) => (
+              <div key={index}>{line}</div>
+            ))}
+          </div>
+          <button className="btn ghost alert-close" onClick={() => setAlert(null)}>✕</button>
+        </div>
+      )}
 
       <div className="tabs">
         {visibleTabs.map((key) => (

@@ -88,8 +88,6 @@ export type HistoryEntry = {
 export type ProcessStatementArgs = {
   sourcePath: string;
   outputDir?: string;
-  month: string;
-  year: string;
 };
 
 export type ProcessPdfArgs = {
@@ -100,8 +98,8 @@ export type ProcessPdfArgs = {
 
 export const detectStatement = (path: string) => invoke<DetectResult>("detect_statement", { path });
 
-export const processStatement = ({ sourcePath, outputDir, month, year }: ProcessStatementArgs) =>
-  invoke<ProcessResult>("process_statement", { sourcePath, outputDir, month, year });
+export const processStatement = ({ sourcePath, outputDir }: ProcessStatementArgs) =>
+  invoke<ProcessResult>("process_statement", { sourcePath, outputDir });
 
 export const processPdf = ({ sourcePath, outputDir, mode }: ProcessPdfArgs) =>
   invoke<ProcessResult[]>("process_pdf", { sourcePath, outputDir, mode });

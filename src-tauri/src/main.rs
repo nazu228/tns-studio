@@ -8,10 +8,11 @@ use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
 use tauri_plugin_updater::UpdaterExt;
 use tns_core::{
-    detect_statement_type, process_statement as run_statement, ProcessOptions, ProcessResult,
-    StatementKind,
+    detect_statement_type, extract_metadata, process_statement as run_statement,
+    ProcessOptions, ProcessResult, StatementKind,
 };
 use tns_db::{CalculationRecord, Database, HistoryEntry};
+use tns_excel;
 use tns_pdf::model::Statement;
 use tns_pdf::{parse_pdf, unique_xlsx_file_name, write_statement_xlsx_with, PdfError};
 
@@ -297,9 +298,6 @@ async fn process_statement(
     state: tauri::State<'_, AppState>,
     source_path: String,
     output_dir: Option<String>,
-    month: Option<String>,
-    year: Option<String>,
-    custom_filename: Option<String>,
 ) -> Result<serde_json::Value, String> {
     if state
         .running
@@ -323,13 +321,30 @@ async fn process_statement(
             );
         };
         let cancel = move || cancel_flag.load(Ordering::SeqCst);
+        // Contract-based filename (same convention as the PDF path): read the
+        // source once to get the contract and the period from the metadata,
+        // then let the core writer place the file in the month subfolder.
+        let book = tns_excel::read(Path::new(&source))
+            .map_err(|error| format!("Не удалось прочитать Excel: {error}"))?;
+        let (_, _, contract) = detect_statement_type(&book);
+        let sheet = book
+            .sheet(0)
+            .map_err(|error| format!("Не удалось открыть лист: {error}"))?;
+        let metadata = extract_metadata(sheet);
+        let (month, year) = split_period(&metadata.period);
+        let custom_filename =
+            if !contract.is_empty() && !month.is_empty() && !year.is_empty() {
+                Some(format!("{}_{}_{}.xlsx", contract, month, year))
+            } else {
+                None
+            };
         run_statement(
             Path::new(&source),
             ProcessOptions {
                 output_dir: output,
                 custom_filename,
-                month,
-                year,
+                month: None,
+                year: None,
                 progress: Some(&progress),
                 cancel: Some(&cancel),
             },
@@ -364,7 +379,7 @@ fn run_pdf(
     mode: &str,
     progress: Option<&dyn Fn(u8, &str)>,
     cancel: Option<&dyn Fn() -> bool>,
-) -> Result<Vec<ProcessResult>, String> {
+) -> Result<(Vec<ProcessResult>, Vec<String>), String> {
     let source_name = source
         .file_name()
         .map(|value| value.to_string_lossy().to_string())
@@ -376,11 +391,13 @@ fn run_pdf(
         return Err("Расчет отменен пользователем.".into());
     }
 
-    let statements = parse_pdf(source).map_err(|error| match error {
+    let parsed = parse_pdf(source).map_err(|error| match error {
         PdfError::NoStatements => "В PDF не найдены ведомости ТНС Энерго.".to_string(),
         error => format!("Не удалось разобрать PDF: {error}"),
     })?;
-    let selected: Vec<&Statement> = statements
+    let warnings = parsed.warnings;
+    let selected: Vec<&Statement> = parsed
+        .statements
         .iter()
         .filter(|statement| statement_matches_mode(statement, mode))
         .collect();
@@ -444,7 +461,7 @@ fn run_pdf(
                 .map_err(|error| format!("Не удалось создать ведомость: {error}"))?;
         results.push(result);
     }
-    Ok(results)
+    Ok((results, warnings))
 }
 
 #[tauri::command]
@@ -473,7 +490,7 @@ async fn process_pdf(
     let cancel_flag = state.cancel.clone();
     let source = PathBuf::from(source_path);
     let output = output_dir.map(PathBuf::from);
-    let results = tauri::async_runtime::spawn_blocking(move || {
+    let (results, pdf_warnings) = tauri::async_runtime::spawn_blocking(move || {
         let progress = |percent: u8, message: &str| {
             let _ = app.emit(
                 "process-progress",
@@ -504,6 +521,12 @@ async fn process_pdf(
             payload["history_warning"] = json!(warning);
         }
         payloads.push(payload);
+    }
+    // Surface skipped-statement warnings so the UI can show a big alert.
+    if !pdf_warnings.is_empty() {
+        for payload in &mut payloads {
+            payload["pdf_warnings"] = json!(pdf_warnings);
+        }
     }
     Ok(payloads)
 }
@@ -724,7 +747,7 @@ mod tests {
         );
         let output = temp_dir("pdf-run");
         let seen = Mutex::new(Vec::new());
-        let results = run_pdf(
+        let (results, _warnings) = run_pdf(
             &source,
             Some(&output),
             "both",

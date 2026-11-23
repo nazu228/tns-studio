@@ -44,8 +44,16 @@ pub enum RowKind {
     Meter,
 }
 
+/// Result of parsing a PDF: the statements that passed invariants and the
+/// warnings for the blocks that were skipped.
+#[derive(Debug, Clone, Default)]
+pub struct PdfParseResult {
+    pub statements: Vec<Statement>,
+    pub warnings: Vec<String>,
+}
+
 /// Parse every TNS statement in the document.
-pub fn parse_pdf(path: &Path) -> Result<Vec<Statement>, PdfError> {
+pub fn parse_pdf(path: &Path) -> Result<PdfParseResult, PdfError> {
     let document = Document::open(path)?;
     let page_count = document.page_count();
     if page_count == 0 {
@@ -59,24 +67,31 @@ pub fn parse_pdf(path: &Path) -> Result<Vec<Statement>, PdfError> {
     // Per-statement recovery: a bad block (e.g. a correction with a manual
     // override that breaks a meter invariant) must not kill the remaining
     // statements in a multi-statement PDF.
-    let mut statements = Vec::with_capacity(blocks.len());
+    let mut result = PdfParseResult::default();
     let mut first_error: Option<PdfError> = None;
     for block in &blocks {
         match extract_statement(&document, path, block, &scans) {
-            Ok(statement) => statements.push(statement),
+            Ok(statement) => result.statements.push(statement),
             Err(error) => {
-                eprintln!(
-                    "warning: skipping statement at pages {:?}: {error}",
-                    block.pages.first().map(|p| p + 1).unwrap_or(0)
-                );
+                let page = block.pages.first().map(|p| p + 1).unwrap_or(0);
+                let last = block.pages.last().map(|p| p + 1).unwrap_or(page);
+                let range = if page == last {
+                    format!("стр. {page}")
+                } else {
+                    format!("стр. {page}–{last}")
+                };
+                eprintln!("warning: skipping statement at {range}: {error}");
+                result.warnings.push(format!(
+                    "Ведомость ({range}) пропущена: {error}"
+                ));
                 first_error.get_or_insert(error);
             }
         }
     }
-    if statements.is_empty() {
+    if result.statements.is_empty() {
         return Err(first_error.unwrap_or(PdfError::NoStatements));
     }
-    Ok(statements)
+    Ok(result)
 }
 
 fn scan_pages(document: &Document, page_count: usize) -> Result<Vec<PageScan>, PdfError> {
@@ -1066,8 +1081,8 @@ mod tests {
     #[ignore]
     fn parses_city_fixture() {
         let path = std::env::var("TNS_PDF_FIXTURE").expect("TNS_PDF_FIXTURE");
-        let statements =
-            parse_pdf(Path::new(&path)).expect("city statement must parse");
+        let parsed = parse_pdf(Path::new(&path)).expect("city statement must parse");
+        let statements = parsed.statements;
         assert_eq!(statements.len(), 1);
         let statement = &statements[0];
         assert_eq!(statement.source.pages, 82);

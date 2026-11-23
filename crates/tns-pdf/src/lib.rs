@@ -11,7 +11,7 @@ pub mod pdfium;
 pub mod text;
 pub mod xlsx;
 
-pub use parse::parse_pdf;
+pub use parse::{parse_pdf, PdfParseResult};
 pub use xlsx::{unique_xlsx_file_name, write_statement_xlsx, write_statement_xlsx_with, xlsx_file_stem};
 
 /// Crate version.

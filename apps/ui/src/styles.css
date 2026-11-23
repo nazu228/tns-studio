@@ -170,6 +170,25 @@ button, input, select { font: inherit; color: inherit; }
 
 .status.success { color: #34d399; }
 
+.alert-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #450a0a;
+  border: 2px solid #ef4444;
+  color: #fecaca;
+  padding: 14px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  margin: 10px 0;
+}
+
+.alert-icon { font-size: 24px; line-height: 1; }
+.alert-text { flex: 1; min-width: 0; overflow-wrap: break-word; }
+.alert-close { flex-shrink: 0; color: #fca5a5; border-color: #7f1d1d; }
+
 .tabs { display: flex; gap: 6px; align-items: flex-end; margin-top: 4px; }
 
 .tab {

@@ -66,7 +66,11 @@ fn run() -> Result<(), Error> {
     }
     let input = PathBuf::from(input);
 
-    let statements = parse_pdf(&input).map_err(Error::Pdf)?;
+    let parsed = parse_pdf(&input).map_err(Error::Pdf)?;
+    let statements = parsed.statements;
+    for warning in &parsed.warnings {
+        eprintln!("warning: {warning}");
+    }
 
     if let Some(output_dir) = json_dir.as_deref() {
         let document = if statements.len() == 1 {
