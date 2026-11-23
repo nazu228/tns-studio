@@ -90,9 +90,9 @@
     "semantic_hash": ""
   },
   "crates/tns-excel/src/lib.rs": {
-    "mtime": 1794907015.9017565,
-    "seen": 1794984651.8661964,
-    "ast_hash": "10c261c4f945e5eab3eebcfa2d306287",
+    "mtime": 1795423430.7155867,
+    "seen": 1795423672.214993,
+    "ast_hash": "41f02810c50ba2e5de444a1cf630fd00",
     "semantic_hash": ""
   },
   "legacy/pyqt/app_gui.py": {
@@ -294,9 +294,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1795422287.304364,
-    "seen": 1795422368.7107475,
-    "ast_hash": "b8fd5b864422909b22a9b39a58fe610a",
+    "mtime": 1795423617.8096845,
+    "seen": 1795423672.2150924,
+    "ast_hash": "d701d74e2f759e577f1196761aa244d1",
     "semantic_hash": ""
   },
   "apps/ui/index.html": {
@@ -324,9 +324,9 @@
     "semantic_hash": ""
   },
   "docs/status.md": {
-    "mtime": 1795422287.3241463,
-    "seen": 1795422368.7107863,
-    "ast_hash": "a69d2b49de363ade43f84ed49583bbb7",
+    "mtime": 1795423585.6721478,
+    "seen": 1795423672.2151437,
+    "ast_hash": "03d989e2df49e6f29f5bb6c6e659fcd9",
     "semantic_hash": ""
   },
   "graphify-out/converted/dom_april_2026_394e4478.md": {
@@ -468,15 +468,15 @@
     "semantic_hash": ""
   },
   "DECISIONS.md": {
-    "mtime": 1795422335.7674623,
-    "seen": 1795422368.7107456,
-    "ast_hash": "695b2117d5fc7821877a00b2e8bc210b",
+    "mtime": 1795423663.3356793,
+    "seen": 1795423672.215091,
+    "ast_hash": "0af613d71e1638d90d7593914dbca098",
     "semantic_hash": ""
   },
   "docs/HANDOFF_PROMPT.md": {
-    "mtime": 1795422317.6978457,
-    "seen": 1795422368.7107794,
-    "ast_hash": "e284f4f8702c8c8ac8601d88db08f895",
+    "mtime": 1795423655.0447476,
+    "seen": 1795423672.215136,
+    "ast_hash": "4cd26ff4fdfd8bc258a4ea386a686e7b",
     "semantic_hash": ""
   },
   "crates/tns-core/src/output_style.rs": {
@@ -522,27 +522,27 @@
     "semantic_hash": ""
   },
   "crates/tns-pdf/Cargo.toml": {
-    "mtime": 1795420675.2111404,
-    "seen": 1795422368.7106683,
-    "ast_hash": "594c565b5d5b71abf042eddf23ead3c8",
+    "mtime": 1795422939.556625,
+    "seen": 1795423672.215,
+    "ast_hash": "9dcd9289529d1c13259d7c94fc72593e",
     "semantic_hash": ""
   },
   "crates/tns-pdf/src/layout.rs": {
-    "mtime": 1795421821.2592638,
-    "seen": 1795422368.71067,
-    "ast_hash": "8ef76ab742fcf143c953598605d491de",
+    "mtime": 1795423444.8093312,
+    "seen": 1795423672.2150016,
+    "ast_hash": "0af94dc034e82104001a58bbbcb23187",
     "semantic_hash": ""
   },
   "crates/tns-pdf/src/lib.rs": {
-    "mtime": 1795421558.467829,
-    "seen": 1795422368.7106717,
-    "ast_hash": "52fbd2677ed5bec43f46a796256b9b86",
+    "mtime": 1795422939.556625,
+    "seen": 1795423672.215004,
+    "ast_hash": "326e1e464a13b0ef765a0dcd3b08c691",
     "semantic_hash": ""
   },
   "crates/tns-pdf/src/main.rs": {
-    "mtime": 1795421891.7201557,
-    "seen": 1795422368.7106733,
-    "ast_hash": "f22ff716cf2b5354736f2072976911b9",
+    "mtime": 1795423430.7649899,
+    "seen": 1795423672.2150056,
+    "ast_hash": "43b86f52d8eb93daccfd2f0676c7dd5a",
     "semantic_hash": ""
   },
   "crates/tns-pdf/src/model.rs": {
@@ -552,21 +552,21 @@
     "semantic_hash": ""
   },
   "crates/tns-pdf/src/parse.rs": {
-    "mtime": 1795422026.8450541,
-    "seen": 1795422368.7106762,
-    "ast_hash": "c9d4799f3377e7d49f3c7cd4b44df81e",
+    "mtime": 1795423444.8083339,
+    "seen": 1795423672.2150092,
+    "ast_hash": "632ba73fbb6418a22527c2e352d5baa4",
     "semantic_hash": ""
   },
   "crates/tns-pdf/src/pdfium.rs": {
-    "mtime": 1795421829.2765195,
-    "seen": 1795422368.7106774,
-    "ast_hash": "a2e8ad0359d94b96ff26f752a68aa132",
+    "mtime": 1795423444.8083339,
+    "seen": 1795423672.2150111,
+    "ast_hash": "7dace4369e2fc0e328c2df727cb99bc1",
     "semantic_hash": ""
   },
   "crates/tns-pdf/src/text.rs": {
-    "mtime": 1795421372.493121,
-    "seen": 1795422368.710679,
-    "ast_hash": "272a113ae82fc4ca42926a4a35bbab54",
+    "mtime": 1795423444.8073366,
+    "seen": 1795423672.2150128,
+    "ast_hash": "084e7d8b0ded638c29c504f649ab6fc0",
     "semantic_hash": ""
   },
   "crates/tns-pdf/vendor/README.md": {
@@ -681,6 +681,12 @@
     "mtime": 1788760751.1886106,
     "seen": 1795422368.7107778,
     "ast_hash": "957e999c125199d4fa154f8f1bf2bb61",
+    "semantic_hash": ""
+  },
+  "crates/tns-pdf/src/xlsx.rs": {
+    "mtime": 1795423430.7619977,
+    "seen": 1795423672.2150156,
+    "ast_hash": "e0a66ffa944294ad19e748a12ea65d13",
     "semantic_hash": ""
   },
   "apps/ui/package-lock.json": {
