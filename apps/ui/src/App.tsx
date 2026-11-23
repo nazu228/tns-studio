@@ -10,22 +10,23 @@ import {
   openFolder,
   pickFile,
   pickFolder,
+  processPdf,
   processStatement,
   type DetectResult,
   type HistoryEntry,
+  type Mode,
   type ProcessResult,
   type StatementKind,
 } from "./ipc";
 import "./styles.css";
 
-type Mode = "both" | "dom" | "gorod";
 type Tab = "dom" | "gorod";
 type HelpTab = "checks" | "fixes";
 type ResultsMap = { dom?: ProcessResult; gorod?: ProcessResult };
-type PlannedFile = { kind: Tab; path: string };
+type PlannedFile = { kind: Tab | "pdf"; path: string };
 type CalculationPlan = { files: PlannedFile[]; outputDir?: string; warning?: string };
 
-const DEFAULT_HINT = "ℹ️ В папке найдено 0 файлов .xlsx. Ведомости ТНС определяются при расчёте.";
+const DEFAULT_HINT = "ℹ️ В папке найдено 0 файлов .xlsx/.pdf. Ведомости ТНС определяются при расчёте.";
 
 const fmt = (value: number | undefined) => (value === undefined ? "—" : value.toFixed(3));
 const energy = (value: number | undefined) => (value === undefined ? "—" : `${value.toFixed(3)} кВт*ч`);
@@ -47,6 +48,9 @@ const describeDetect = (detected: DetectResult): string => {
     const file = detected.files[0];
     if (!file) return "⚠️ Файл не выбран.";
     if (file.error) return `⚠️ Не удалось прочитать файл: ${file.error}`;
+    if (file.kind === "pdf") {
+      return `ℹ️ Выбран PDF: ${file.path.split(/[\\/]/).pop() ?? ""}. Ведомости ТНС определятся при расчёте.`;
+    }
     if (file.kind === "unknown") {
       return "⚠️ Не удалось определить тип ведомости. Ожидается ведомость ООО «Южный Дом» или ООО «Южный Город».";
     }
@@ -55,19 +59,26 @@ const describeDetect = (detected: DetectResult): string => {
 
   const dom = detected.files.filter((file) => file.error === null && file.kind === "dom").length;
   const gorod = detected.files.filter((file) => file.error === null && file.kind === "gorod").length;
-  const unknown = detected.files.length - dom - gorod;
+  const pdf = detected.files.filter((file) => file.error === null && file.kind === "pdf").length;
+  const unknown = detected.files.length - dom - gorod - pdf;
   const unreadable = detected.files.filter((file) => file.error !== null).length;
-  const summary = `ℹ️ В папке найдено ${detected.files.length} файлов .xlsx: дом — ${dom}, город — ${gorod}, не определено — ${unknown}.`;
+  const summary = `ℹ️ В папке найдено ${detected.files.length} файлов .xlsx/.pdf: дом — ${dom}, город — ${gorod}, PDF — ${pdf}, не определено — ${unknown}.`;
   return unreadable > 0 ? `${summary} ⚠️ Не удалось прочитать файлов: ${unreadable}.` : summary;
 };
 
 const planCalculation = (detected: DetectResult, currentMode: Mode): CalculationPlan | { error: string } => {
-  const usable = detected.files.filter((file) => file.error === null && file.kind !== "unknown");
+  const usable = detected.files.filter((file) => file.error === null);
+  const pdfFiles = usable.filter((file) => file.kind === "pdf");
+  const domFiles = usable.filter((file) => file.kind === "dom");
+  const gorodFiles = usable.filter((file) => file.kind === "gorod");
 
   if (!detected.is_dir) {
     const file = detected.files[0];
-    if (!file) return { error: "⚠️ Файл не выбран. Выберите ведомость .xlsx." };
+    if (!file) return { error: "⚠️ Файл не выбран. Выберите ведомость .xlsx или .pdf." };
     if (file.error) return { error: `⚠️ Не удалось прочитать файл: ${file.error}` };
+    if (file.kind === "pdf") {
+      return { files: [{ kind: "pdf", path: file.path }] };
+    }
     if (file.kind === "unknown") {
       return { error: "⚠️ Не удалось определить тип ведомости. Ожидается ведомость ООО «Южный Дом» или ООО «Южный Город»." };
     }
@@ -79,18 +90,18 @@ const planCalculation = (detected: DetectResult, currentMode: Mode): Calculation
     return { files: [{ kind: file.kind, path: file.path }] };
   }
 
-  const domFiles = usable.filter((file) => file.kind === "dom");
-  const gorodFiles = usable.filter((file) => file.kind === "gorod");
-
   if (currentMode === "dom" || currentMode === "gorod") {
     const candidates = currentMode === "dom" ? domFiles : gorodFiles;
-    if (candidates.length === 0) {
-      return { error: `⚠️ В папке не найдена ведомость ${orgLabel(currentMode)}.` };
-    }
     if (candidates.length > 1) {
       return { error: "⚠️ В папке несколько исходных ведомостей одной организации. Оставьте одну и повторите расчёт." };
     }
-    return { files: [{ kind: currentMode, path: candidates[0].path }], outputDir: detected.path };
+    if (candidates.length === 0 && pdfFiles.length === 0) {
+      return { error: `⚠️ В папке не найдена ведомость ${orgLabel(currentMode)} (.xlsx или .pdf).` };
+    }
+    const files: PlannedFile[] = [];
+    if (candidates[0]) files.push({ kind: currentMode, path: candidates[0].path });
+    for (const pdf of pdfFiles) files.push({ kind: "pdf", path: pdf.path });
+    return { files, outputDir: detected.path };
   }
 
   if (domFiles.length > 1 || gorodFiles.length > 1) {
@@ -98,18 +109,19 @@ const planCalculation = (detected: DetectResult, currentMode: Mode): Calculation
       error: "⚠️ В папке несколько исходных ведомостей одной организации. Оставьте по одной ведомости «Дом» и «Город».",
     };
   }
-  if (domFiles.length === 0 && gorodFiles.length === 0) {
-    return { error: "⚠️ В папке не найдены ведомости ТНС (.xlsx)." };
+  if (domFiles.length === 0 && gorodFiles.length === 0 && pdfFiles.length === 0) {
+    return { error: "⚠️ В папке не найдены ведомости ТНС (.xlsx или .pdf)." };
   }
 
   const files: PlannedFile[] = [];
   if (domFiles[0]) files.push({ kind: "dom", path: domFiles[0].path });
   if (gorodFiles[0]) files.push({ kind: "gorod", path: gorodFiles[0].path });
+  for (const pdf of pdfFiles) files.push({ kind: "pdf", path: pdf.path });
 
   const warning =
-    domFiles.length === 0
+    domFiles.length === 0 && pdfFiles.length === 0
       ? `⚠️ Ведомость ${orgLabel("dom")} не найдена — обработана только ${orgLabel("gorod")}.`
-      : gorodFiles.length === 0
+      : gorodFiles.length === 0 && pdfFiles.length === 0
         ? `⚠️ Ведомость ${orgLabel("gorod")} не найдена — обработана только ${orgLabel("dom")}.`
         : undefined;
 
@@ -264,52 +276,70 @@ export default function App() {
 
     const collected: ResultsMap = {};
     const warnings: string[] = plan.warning ? [plan.warning] : [];
+    const summaries: string[] = [];
     setCalculating(true);
     setProgress({ percent: 5, message: "Подготовка..." });
     setResults({});
     setStatus("Идёт расчёт...");
-    setTab(plan.files[0].kind);
+    if (plan.files[0] && plan.files[0].kind !== "pdf") setTab(plan.files[0].kind);
     modeRef.current = mode;
     cancelledRef.current = false;
 
     try {
       for (const [index, file] of plan.files.entries()) {
         if (cancelledRef.current) break;
-        processingKindRef.current = file.kind;
-        setStatus(`Расчёт ${orgLabel(file.kind)}...`);
 
-        const result = await processStatement({
-          sourcePath: file.path,
-          outputDir: plan.outputDir,
-          month,
-          year,
-        });
+        if (file.kind === "pdf") {
+          processingKindRef.current = null;
+          setStatus("Расчёт PDF-ведомостей...");
+          const pdfResults = await processPdf({
+            sourcePath: file.path,
+            outputDir: plan.outputDir,
+            mode,
+          });
+          for (const result of pdfResults) {
+            const kind: Tab = result.consumer.toLowerCase().includes("город") ? "gorod" : "dom";
+            collected[kind] = result;
+            setResults({ ...collected });
+            setTab(kind);
+            if (result.warning) warnings.push(result.warning);
+            if (result.history_warning) warnings.push(result.history_warning);
+            summaries.push(
+              `${result.consumer} · ${result.period} — домов ${result.houses_count}, итого ${fmt(result.total_all)} кВт*ч`
+            );
+            if (cancelledRef.current) break;
+          }
+        } else {
+          processingKindRef.current = file.kind;
+          setStatus(`Расчёт ${orgLabel(file.kind)}...`);
 
-        collected[file.kind] = result;
-        setResults({ ...collected });
-        setTab(file.kind);
-        if (result.warning) warnings.push(result.warning);
-        if (result.history_warning) warnings.push(result.history_warning);
+          const result = await processStatement({
+            sourcePath: file.path,
+            outputDir: plan.outputDir,
+            month,
+            year,
+          });
 
-        if (cancelledRef.current) break;
+          collected[file.kind] = result;
+          setResults({ ...collected });
+          setTab(file.kind);
+          if (result.warning) warnings.push(result.warning);
+          if (result.history_warning) warnings.push(result.history_warning);
+          summaries.push(`${orgLabel(file.kind)} — домов ${result.houses_count}, ${fmt(result.total_all)} кВт*ч`);
 
-        const summary = `✅ ${result.consumer} · ${result.period}: домов ${result.houses_count}, итого ${fmt(result.total_all)} кВт*ч`;
-        setStatus(warnings.length > 0 ? `${summary} ${warnings.map((warning) => `⚠️ ${warning}`).join(" ")}` : summary);
-        if (index < plan.files.length - 1) setProgress({ percent: 45, message: "Дом готов" });
+          if (cancelledRef.current) break;
+          if (index < plan.files.length - 1 && file.kind === "dom") {
+            setProgress({ percent: 45, message: "Дом готов" });
+          }
+        }
       }
 
       if (cancelledRef.current) {
         setStatus("Отмена...");
       } else {
         setProgress({ percent: 100, message: "Готово" });
-        const parts = plan.files.flatMap((file) => {
-          const result = collected[file.kind];
-          return result
-            ? [`${orgLabel(file.kind)} — ${result.houses_count} домов, ${fmt(result.total_all)} кВт*ч`]
-            : [];
-        });
         const warningParts = warnings.map((warning) => `⚠️ ${warning}`);
-        setStatus([`✅ Расчёт завершён: ${parts.join("; ")}`, ...warningParts].join(" "));
+        setStatus([`✅ Расчёт завершён: ${summaries.join("; ")}`, ...warningParts].join(" "));
       }
     } catch (error) {
       if (isCancellation(error)) {
