@@ -175,3 +175,15 @@
 **Consequence:** PDF support needs a ~7.26 MB PDFium DLL and is currently CLI/JSON only. 7b must map `Statement` to the standard xlsx and add multiple-statement/contract naming; 7c adds UI file/folder support. PDF/JSON fixtures with personal data are not committed. PDFium calls must be serialized; the engine is not thread-safe.
 
 **Tried and rejected:** pdf.io/Adobe intermediate Excel (broken headers, metadata outside the table, page-sheet splits); text-only extraction (20/22 houses); OCR for these files (unnecessary; reject scans explicitly).
+
+## 2026-11-23 — PDF statements reuse the legacy workbook writer through a synthetic 1C source
+
+**Context:** slice 7b must turn a parsed PDF `Statement` into the standard TNS workbook. Duplicating the writer in `tns-pdf` would fork formulas, styles and summary behaviour that are already golden-verified in `tns-core`.
+
+**Decision:** `tns-pdf::xlsx` projects the statement onto the legacy 1C source layout (metadata rows, header row 8, row types 100/101/102, zones, meter readings, control/official volumes), writes it to a temporary xlsx and calls `tns_core::process_statement` with contract-based `custom_filename`, document month/year and the requested output directory. The temporary source is deleted afterwards. Output names are `<contract>_<Month>_<Year>.xlsx` and corrections add `_за_<BaseMonth>_<BaseYear>`; duplicates inside one run get `_2`.
+
+**Why:** one writer keeps `Сводка по домам` + `Ведомость ЭП`, formulas, styles, CF, hyperlinks and `safe_save` identical for xlsx and PDF inputs, and the core invariants revalidate the PDF projection before anything is written.
+
+**Consequence:** the CLI supports `--xlsx` and produces standard workbooks for all five user PDFs with exact official totals (736051.312 / 1032745.77 / 137107.602 / 223073.372). PDFium control characters are stripped before writing and the synthetic source receives the default `Normal` cell style via `tns-excel::ensure_default_cell_styles`; without those steps openpyxl/Excel treat the file as damaged. Tauri/UI still cannot select PDFs (7c).
+
+**Tried and rejected:** a separate PDF-specific writer (would fork the golden-verified output); keeping raw PDF control characters (invalid XML in sharedStrings); shipping the synthetic workbook without default cell styles (openpyxl warning, Excel repair risk).

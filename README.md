@@ -18,13 +18,14 @@ TNS Energy Studio — десктопное приложение для обра�
 - `crates/tns-core` — `process_statement` совпадает с golden по result и по
   полной xlsx-сигнатуре (значения, формулы, merge, freeze, стили, CF, hyperlink).
 - `crates/tns-db` — локальная SQLite: история, дома, тарифы, бэкап.
-- `crates/tns-pdf` — PDFium-парсер PDF-ведомостей (7a): векторная сетка,
-  только известный layout; в приложение пока не подключён.
+- `crates/tns-pdf` — PDFium-парсер PDF-ведомостей (7a/7b): векторная сетка,
+  только известный layout; CLI пишет стандартные xlsx по договору;
+  в приложение пока не подключён.
 - `src-tauri` — реальные `detect_statement`/`process_statement`, прогресс
   `process-progress`, `cancel_statement`, запись истории, updater-плагин.
 - `apps/ui` — реальный Tauri IPC вместо мока: выбор файла/папки, режимы
   both/dom/gorod, прогресс, отмена, результаты, история, бэкап, open file/folder.
-- Проверки: **53 Rust-теста** (core 16, db 4, excel 5, tauri 7, pdf 21) и
+- Проверки: **59 Rust-тестов** (core 16, db 4, excel 7, tauri 7, pdf 25) и
   **22 pytest passed / 0 xfailed**.
 - Релиз `0.2.0` опубликован как GitHub Release `v0.2.0-1`: NSIS installer,
   `.exe.sig` и `latest.json`; updater проверен через GitHub endpoint.
@@ -32,6 +33,16 @@ TNS Energy Studio — десктопное приложение для обра�
 Живой runtime-smoke выполнен в Tauri-окне: расчёт из UI создал xlsx, полностью
 совпадающий с golden; история и бэкап проверены. Ручная проверка нативного
 диалога выбора файла/папки и `open_file`/`open_folder` остаётся на приёмке.
+
+PDF-ведомости (пока CLI, UI — 7c):
+
+```powershell
+cargo run -p tns-pdf -- parse "<pdf>" --xlsx "<out-dir>" [--json "<out-dir>"]
+```
+
+Имена выходов: `<contract>_<Month>_<Year>.xlsx`, корректировки —
+`<contract>_<Month>_<Year>_за_<BaseMonth>_<BaseYear>.xlsx`; несколько ведомостей
+в одном PDF пишутся отдельными файлами.
 
 ## Структура
 
@@ -41,6 +52,7 @@ crates/tns-core/    # парсинг, layout, writer, стили, process_statem
 crates/tns-db/      # SQLite: schema/seed/history/backup/validate
 crates/tns-excel/   # umya-обёртка, safe_save, xlsx post-processing
 crates/tns-parity/  # Rust-драйвер для pytest
+crates/tns-pdf/     # PDFium-парсер PDF + проекция на стандартную ведомость
 src-tauri/          # Tauri shell и команды
 apps/ui/            # Vite + React UI
 tests/parity/       # golden, фикстуры, скриншоты, oracle
