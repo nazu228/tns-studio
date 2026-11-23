@@ -4,6 +4,7 @@
 //! cell rectangles), extracts each table cell as text, and turns the rows into
 //! a typed JSON document.
 
+pub mod layout;
 pub mod model;
 pub mod pdfium;
 

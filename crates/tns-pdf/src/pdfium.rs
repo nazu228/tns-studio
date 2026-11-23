@@ -81,6 +81,18 @@ type FnPageObjGetBounds = unsafe extern "system" fn(
     *mut c_float,
     *mut c_float,
 ) -> c_int;
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+struct FsMatrix {
+    a: c_float,
+    b: c_float,
+    c: c_float,
+    d: c_float,
+    e: c_float,
+    f: c_float,
+}
+type FnPageObjGetMatrix =
+    unsafe extern "system" fn(FpdfPageObject, *mut FsMatrix) -> c_int;
 type FnPathCountSegments = unsafe extern "system" fn(FpdfPageObject) -> c_int;
 type FnPathGetPathSegment =
     unsafe extern "system" fn(FpdfPageObject, c_int) -> FpdfPathSegment;
@@ -112,6 +124,7 @@ struct Api {
     page_get_object: FnPageGetObject,
     page_obj_get_type: FnPageObjGetType,
     page_obj_get_bounds: FnPageObjGetBounds,
+    page_obj_get_matrix: FnPageObjGetMatrix,
     path_count_segments: FnPathCountSegments,
     path_get_path_segment: FnPathGetPathSegment,
     path_segment_get_point: FnPathSegmentGetPoint,
@@ -244,6 +257,7 @@ fn bind(library: Library, path: &Path) -> Result<Api, PdfiumError> {
             page_get_object: symbol(&library, path, "FPDFPage_GetObject")?,
             page_obj_get_type: symbol(&library, path, "FPDFPageObj_GetType")?,
             page_obj_get_bounds: symbol(&library, path, "FPDFPageObj_GetBounds")?,
+            page_obj_get_matrix: symbol(&library, path, "FPDFPageObj_GetMatrix")?,
             path_count_segments: symbol(&library, path, "FPDFPath_CountSegments")?,
             path_get_path_segment: symbol(&library, path, "FPDFPath_GetPathSegment")?,
             path_segment_get_point: symbol(&library, path, "FPDFPathSegment_GetPoint")?,
@@ -437,6 +451,15 @@ impl Page<'_> {
                 )
             } != 0;
             let mut segments = Vec::new();
+            let mut matrix = FsMatrix {
+                a: 1.0,
+                b: 0.0,
+                c: 0.0,
+                d: 1.0,
+                e: 0.0,
+                f: 0.0,
+            };
+            unsafe { (self.api.page_obj_get_matrix)(object, &mut matrix) };
             let segment_count = unsafe { (self.api.path_count_segments)(object) }.max(0);
             for segment_index in 0..segment_count {
                 let segment =
@@ -452,6 +475,14 @@ impl Page<'_> {
                 {
                     continue;
                 }
+                let local_x = x as f64;
+                let local_y = y as f64;
+                let x = matrix.a as f64 * local_x
+                    + matrix.c as f64 * local_y
+                    + matrix.e as f64;
+                let y = matrix.b as f64 * local_x
+                    + matrix.d as f64 * local_y
+                    + matrix.f as f64;
                 let kind = unsafe { (self.api.path_segment_get_type)(segment) };
                 segments.push(Segment { kind, x, y });
             }
@@ -584,8 +615,8 @@ pub struct Rect {
 #[derive(Debug, Clone, Copy)]
 pub struct Segment {
     pub kind: c_int,
-    pub x: f32,
-    pub y: f32,
+    pub x: f64,
+    pub y: f64,
 }
 
 impl Segment {
