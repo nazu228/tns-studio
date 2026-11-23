@@ -7,6 +7,7 @@
 pub mod layout;
 pub mod model;
 pub mod pdfium;
+pub mod text;
 
 /// Crate version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
