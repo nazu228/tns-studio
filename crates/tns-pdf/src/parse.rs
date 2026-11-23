@@ -844,6 +844,133 @@ mod tests {
         assert_eq!(statement_kind(org.as_deref()), "gorod");
     }
 
+    fn minimal_statement() -> Statement {
+        use crate::model::{Balance, Layout, Official, PageInfo, Source, StatementMeta, Totals};
+        Statement {
+            schema_version: Statement::SCHEMA_VERSION,
+            source: Source {
+                file: "fixture.pdf".to_string(),
+                pages: 1,
+                producer: Some("test".to_string()),
+                text_layer: true,
+            },
+            statement: StatementMeta {
+                kind: "gorod".to_string(),
+                is_correction: false,
+                org: Some("ООО Город".to_string()),
+                contract: Some("1".to_string()),
+                month: Some("2026-10".to_string()),
+                base_period: None,
+                month_label: Some("Октябрь 2026".to_string()),
+                page_range: [1, 1],
+            },
+            layout: Layout {
+                page_size: [841.89, 595.28],
+                columns: 27,
+                x_boundaries: vec![0.0; 28],
+                confidence: 1.0,
+            },
+            pages: vec![PageInfo {
+                page: 1,
+                footer: None,
+                rows: 1,
+                houses_started: 1,
+                role: "title+table".to_string(),
+            }],
+            houses: vec![House {
+                num: 1,
+                name: "Дом 1".to_string(),
+                page: 1,
+                main: Some(10.0),
+                sub_deduct: Some(-2.0),
+                control: Some(8.0),
+                amount: Some(100.0),
+                day: 0.0,
+                night: 0.0,
+                odn: 8.0,
+                simple: 8.0,
+                total: 8.0,
+                diff: 0.0,
+                meters_active: 1,
+                meters_res: 0,
+                sub_rows: 0,
+                meter_range: [0, 0],
+            }],
+            meters: vec![Meter {
+                house: 1,
+                row: 1,
+                page: 1,
+                point: "230110605149".to_string(),
+                place: String::new(),
+                serial: "1".to_string(),
+                zone: "odn".to_string(),
+                zone_raw: String::new(),
+                preview_bucket: "odn".to_string(),
+                sub_type: String::new(),
+                start: Some(1.0),
+                end: Some(9.0),
+                delta: Some(8.0),
+                k: Some(1.0),
+                main: Some(8.0),
+                extra: None,
+                unmetered: None,
+                odn: None,
+                line_loss: None,
+                tr_loss: None,
+                sub_volume: None,
+                voltage: "НН".to_string(),
+                category: "Первая".to_string(),
+                billed: Some(8.0),
+                amount: Some(100.0),
+                is_sub: false,
+                is_reserve: false,
+            }],
+            totals: Totals {
+                day: 0.0,
+                night: 0.0,
+                odn: 8.0,
+                control: 8.0,
+                amount: 100.0,
+                official: Official {
+                    volume: Some(8.0),
+                    amount: Some(100.0),
+                    page: Some(1),
+                },
+                balance: Balance {
+                    volume: 0.0,
+                    amount: 0.0,
+                },
+            },
+            warnings: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn validates_invariants_and_reports_context() {
+        assert!(validate_statement(&minimal_statement(), 1).is_ok());
+
+        let mut broken = minimal_statement();
+        broken.totals.control = 9.0;
+        assert!(matches!(
+            validate_statement(&broken, 1),
+            Err(PdfError::Invariant { .. })
+        ));
+
+        let mut broken = minimal_statement();
+        broken.meters[0].delta = Some(7.0);
+        assert!(matches!(
+            validate_statement(&broken, 1),
+            Err(PdfError::Invariant { .. })
+        ));
+
+        let mut broken = minimal_statement();
+        broken.pages[0].footer = Some("2/2".to_string());
+        assert!(matches!(
+            validate_statement(&broken, 1),
+            Err(PdfError::Invariant { .. })
+        ));
+    }
+
     #[test]
     #[ignore]
     fn parses_city_fixture() {
