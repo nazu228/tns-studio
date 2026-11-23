@@ -8,8 +8,8 @@ use crate::model::{
 };
 use crate::pdfium::Document;
 use crate::text::{
-    classify_zone, is_reserve, is_sub, normalize_text, parse_footer, parse_month, parse_number,
-    preview_bucket, scan_numbers, strip_whitespace, Zone,
+    classify_zone, is_reserve, is_sub, normalize_text, parse_base_period, parse_footer,
+    parse_month, parse_number, preview_bucket, scan_numbers, strip_whitespace, Zone,
 };
 use crate::PdfError;
 use std::path::Path;
@@ -155,8 +155,21 @@ fn extract_statement(
     let first_page_index = *block.pages.first().expect("block is not empty");
     let first_scan = &scans[first_page_index];
     let (org, contract_raw, month_label_raw) = extract_metadata(&first_scan.text);
+    let base_period = month_label_raw
+        .as_deref()
+        .and_then(parse_base_period);
+    let is_correction = base_period.is_some();
     let (month, month_label) = match month_label_raw.as_deref().and_then(parse_month) {
-        Some((month, label)) => (Some(month), Some(label)),
+        Some((month, label)) => {
+            // Corrections keep the full label (`Октябрь 2026 за сентябрь 2026`)
+            // because the base period is part of the document identity.
+            let label = if is_correction {
+                month_label_raw.clone().unwrap_or_default()
+            } else {
+                label
+            };
+            (Some(month), Some(label))
+        }
         None => (None, month_label_raw.clone()),
     };
 
@@ -389,13 +402,13 @@ fn extract_statement(
         },
         statement: StatementMeta {
             kind: statement_kind(org.as_deref()),
-            is_correction: false,
+            is_correction,
             org,
             contract: contract_raw
                 .as_deref()
                 .and_then(|raw| normalize_text(raw).split(' ').next().map(str::to_string)),
             month,
-            base_period: None,
+            base_period,
             month_label,
             page_range: [
                 first_page_index + 1,
@@ -436,7 +449,20 @@ fn extract_metadata(text: &str) -> (Option<String>, Option<String>, Option<Strin
             contract = value_after(line, "Договор:", next.clone());
         }
         if month.is_none() {
-            month = value_after(line, "Месяц:", next);
+            if let Some(mut value) = value_after(line, "Месяц:", lines.get(index + 1).cloned()) {
+                // PDFium may split `Октябрь 2026 за сентябрь 2026` across lines.
+                // Append a continuation only when the base period is still missing.
+                if parse_base_period(&value).is_none() {
+                    for candidate in lines.iter().skip(index + 2).take(2) {
+                        let combined = format!("{value} {candidate}");
+                        if parse_base_period(&combined).is_some() {
+                            value = combined;
+                            break;
+                        }
+                    }
+                }
+                month = Some(value);
+            }
         }
     }
     (org, contract, month)
@@ -842,6 +868,20 @@ mod tests {
         assert_eq!(contract.as_deref(), Some("23110604327 ( 23110604327) от 15.03.2022"));
         assert_eq!(month.as_deref(), Some("Октябрь 2026"));
         assert_eq!(statement_kind(org.as_deref()), "gorod");
+    }
+
+    #[test]
+    fn extracts_split_correction_month() {
+        let text = "Месяц:\r\nОктябрь 2026\r\nза сентябрь 2026\r\nТочка учета";
+        let (_, _, month) = extract_metadata(text);
+        assert_eq!(
+            month.as_deref(),
+            Some("Октябрь 2026 за сентябрь 2026")
+        );
+        assert_eq!(
+            month.as_deref().and_then(parse_base_period),
+            Some("2026-09".to_string())
+        );
     }
 
     fn minimal_statement() -> Statement {

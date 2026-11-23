@@ -243,6 +243,29 @@ pub fn parse_month(label: &str) -> Option<(String, String)> {
     None
 }
 
+/// Extract the correction base period from `Октябрь 2026 за сентябрь 2026`
+/// into `2026-09`. Non-correction labels return `None`.
+pub fn parse_base_period(label: &str) -> Option<String> {
+    let normalized = normalize_text(label).to_lowercase();
+    let marker = normalized.find(" за ")?;
+    let rest = &normalized[marker + " за ".len()..];
+    let words: Vec<&str> = rest.split(' ').collect();
+    for pair in words.windows(2) {
+        let Some((_, month)) = MONTHS
+            .iter()
+            .find(|(name, _)| *name == pair[0])
+        else {
+            continue;
+        };
+        if pair[1].len() != 4 || !pair[1].chars().all(|character| character.is_ascii_digit())
+        {
+            continue;
+        }
+        return Some(format!("{}-{month:02}", pair[1]));
+    }
+    None
+}
+
 /// Parse `стр. 2 из 82` (or `стр 2 из 82`) into `(2, 82)`.
 pub fn parse_footer(text: &str) -> Option<(u32, u32)> {
     let normalized = normalize_text(text);
@@ -373,6 +396,20 @@ mod tests {
             Some(("2026-10".to_string(), "Октябрь 2026".to_string()))
         );
         assert_eq!(parse_month("нет даты"), None);
+    }
+
+    #[test]
+    fn parses_correction_base_period() {
+        assert_eq!(
+            parse_base_period("Октябрь 2026 за сентябрь 2026"),
+            Some("2026-09".to_string())
+        );
+        assert_eq!(
+            parse_base_period("Октябрь 2026 за Сентябрь 2026 г."),
+            Some("2026-09".to_string())
+        );
+        assert_eq!(parse_base_period("Октябрь 2026"), None);
+        assert_eq!(parse_base_period("за сентябрь 2026"), None);
     }
 
     #[test]
